@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aliança Divergente — App de Análise Comportamental</title>
+<style>
+  :root{
+    --navy:#1B1B3A; --navy2:#24244A; --deep:#121228; --gold:#C9A24B; --gold2:#E8D9A8;
+    --ink:#23233D; --muted:#6B6B85; --bg:#F5F4F0; --card:#FFFFFF; --line:#E5E5EE;
+    --teal:#2F6F6A; --red:#C0392B; --green:#2E7D32;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',Calibri,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  a{color:var(--gold)}
+  header{background:var(--deep);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header .logo{font-family:Cambria,Georgia,serif;font-weight:bold;font-size:20px;letter-spacing:.5px}
+  header .logo b{color:var(--gold)}
+  nav{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  nav button{background:transparent;color:#c9c9e0;border:1px solid transparent;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:14px;transition:.15s}
+  nav button:hover{color:#fff;background:#ffffff14}
+  nav button.active{background:var(--gold);color:var(--deep);font-weight:bold}
+  main{max-width:960px;margin:0 auto;padding:24px 18px 60px}
+  .view{display:none;animation:fade .25s}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h1{font-family:Cambria,Georgia,serif;font-size:30px;margin:.2em 0 .1em;color:var(--navy)}
+  h2{font-family:Cambria,Georgia,serif;font-size:21px;color:var(--navy);margin:1.2em 0 .4em}
+  h3{font-size:16px;color:var(--navy);margin:1em 0 .3em}
+  .kicker{color:var(--gold);font-weight:bold;letter-spacing:2px;font-size:12px;text-transform:uppercase}
+  p.lead{color:var(--muted);font-size:15px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin:14px 0;box-shadow:0 3px 10px #0000000d}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+  .pill{display:inline-block;background:var(--navy);color:#fff;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:bold}
+  .pill.gold{background:var(--gold);color:var(--deep)}
+  button.primary{background:var(--gold);color:var(--deep);border:none;padding:11px 20px;border-radius:9px;font-weight:bold;cursor:pointer;font-size:15px}
+  button.primary:hover{filter:brightness(1.05)}
+  button.ghost{background:transparent;border:1px solid var(--line);padding:9px 16px;border-radius:9px;cursor:pointer;color:var(--ink)}
+  button.ghost:hover{background:var(--bg)}
+  button.nucleo-tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .nlist-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13.5px}
+  .qbadge{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .nlist-row button{background:none;border:none;color:var(--red);cursor:pointer;font-size:13px}
+  .resumo-row{display:flex;align-items:center;gap:10px;margin:8px 0}
+  .resumo-row .lbl{width:150px;font-size:13px;flex-shrink:0}
+  .resumo-row .bars{flex:1;display:flex;gap:4px;align-items:center}
+  .minibar{height:16px;border-radius:4px;background:var(--line);flex:1;position:relative;overflow:hidden}
+  .minibar>div{height:100%}
+  .resumo-row .cnt{width:70px;font-size:12px;color:var(--muted);text-align:right}
+  .obst-row{display:flex;align-items:center;gap:10px;margin:8px 0}
+  .obst-row .lbl{width:130px;font-size:13px;flex-shrink:0}
+  .obst-row input[type=range]{flex:1}
+  .obst-row .val{width:26px;text-align:right;font-size:12px;color:var(--muted)}
+  .vw-bar{display:flex;height:22px;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+  .vw-bar>div{display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:bold}
+  .verdict{border-radius:10px;padding:14px;font-size:14px;margin-top:12px}
+  .verdict.good{background:#eafaf1;border:1px solid #a9dfbf;color:#1b5e34}
+  .verdict.mid{background:#fef9e7;border:1px solid #f7dc6f;color:#7d6608}
+  .verdict.bad{background:#fdecea;border:1px solid #f5b7b1;color:#7b241c}
+  .q{margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:10px;background:#fbfbfa}
+  .q .qt{font-weight:bold;margin-bottom:8px}
+  .likert{display:flex;gap:6px;flex-wrap:wrap}
+  .likert label{flex:1;min-width:70px;text-align:center;border:1px solid var(--line);border-radius:8px;padding:8px 4px;cursor:pointer;font-size:12.5px;background:#fff;transition:.12s}
+  .likert input{display:none}
+  .likert label:hover{border-color:var(--gold)}
+  .likert input:checked + span{font-weight:bold}
+  .likert label.sel{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .opts label{display:block;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:6px 0;cursor:pointer;background:#fff}
+  .opts label:hover{border-color:var(--gold)}
+  .opts label.sel{background:#fbf6e8;border-color:var(--gold)}
+  .opts input{margin-right:8px}
+  .bar{height:14px;background:var(--line);border-radius:8px;overflow:hidden}
+  .bar > div{height:100%;background:linear-gradient(90deg,var(--gold),var(--teal))}
+  .result-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .muted{color:var(--muted);font-size:13px}
+  .tag{font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--muted)}
+  /* chat */
+  #chatwrap{display:flex;flex-direction:column;height:60vh;min-height:380px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+  #chatlog{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--bg)}
+  .msg{max-width:82%;padding:11px 14px;border-radius:14px;font-size:14.5px;white-space:pre-wrap;word-wrap:break-word}
+  .msg.user{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:4px}
+  .msg.bot{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+  .msg.sys{align-self:center;background:#fbf6e8;border:1px solid var(--gold);color:var(--ink);font-size:13px;text-align:center}
+  #chatform{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:#fff}
+  #chatinput{flex:1;resize:none;border:1px solid var(--line);border-radius:9px;padding:10px;font-family:inherit;font-size:14.5px;max-height:120px}
+  input[type=text],input[type=password],select,textarea{border:1px solid var(--line);border-radius:9px;padding:10px;font-family:inherit;font-size:14px;width:100%}
+  label.field{display:block;margin:12px 0 4px;font-weight:bold;font-size:13.5px}
+  .note{background:#fbf6e8;border:1px solid var(--gold);border-radius:10px;padding:12px 14px;font-size:13.5px;color:#5b4a20}
+  .warn{background:#fdecea;border:1px solid #f5b7b1;border-radius:10px;padding:12px 14px;font-size:13.5px;color:#7b241c}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
+  .scenario-fb{margin-top:12px;padding:12px 14px;border-radius:10px;font-size:14px}
+  .fb-good{background:#eafaf1;border:1px solid #a9dfbf}
+  .fb-mid{background:#fef9e7;border:1px solid #f7dc6f}
+  .fb-bad{background:#fdecea;border:1px solid #f5b7b1}
+  .steps{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .steps .step{flex:1;min-width:120px;background:var(--navy);color:#fff;border-radius:9px;padding:10px;text-align:center;font-size:13px}
+  .steps .step b{color:var(--gold2);display:block;font-size:15px}
+  .typing{align-self:flex-start;color:var(--muted);font-size:13px;padding:4px 8px}
+  .dot{animation:blink 1.2s infinite}
+  .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.2}30%{opacity:1}}
+  @media(max-width:600px){nav{width:100%;margin-left:0}header .logo{font-size:17px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><b>ALIANÇA</b> DIVERGENTE</div>
+  <nav id="nav">
+    <button data-v="home" class="active">Início</button>
+    <button data-v="diag">Diagnóstico</button>
+    <button data-v="cen">Cenários</button>
+    <button data-v="pp">Plano Perfeito</button>
+    <button data-v="acao">Plano de Ação</button>
+    <button data-v="dash">Dashboard</button>
+    <button data-v="coach">Coach IA</button>
+    <button data-v="cfg">Config</button>
+  </nav>
+</header>
+<main>
+
+<!-- HOME -->
+<section id="home" class="view active">
+  <div class="kicker">Análise comportamental &amp; cenário interativo</div>
+  <h1>Seu app de quebra de padrões</h1>
+  <p class="lead">Baseado na metodologia e nos Protocolos oficiais da Aliança Divergente (Elton Euler): Teia dos Acontecimentos, Método PDA, Núcleo Emocional, Medo, Dependência e Proteção Emocional, e Combate à Culpa. Funciona offline; o Coach IA conecta ao modelo de chat que você escolher.</p>
+  <div class="grid g3">
+    <div class="card">
+      <span class="pill gold">1</span>
+      <h3>Diagnóstico comportamental</h3>
+      <p class="muted">Um questionário revela seus arquétipos de Núcleo Emocional, nível de medo, tipo de culpa dominante e tendência de dependência — com um roteiro de protocolos recomendado.</p>
+      <button class="primary" data-action="go" data-arg="diag">Fazer diagnóstico</button>
+    </div>
+    <div class="card">
+      <span class="pill gold">2</span>
+      <h3>Cenários interativos</h3>
+      <p class="muted">Situações reais de decisão. Você escolhe como reagir e recebe feedback no formato PDA (Perceber, Decidir, Agir), revelando o padrão por trás de cada escolha.</p>
+      <button class="primary" data-action="go" data-arg="cen">Abrir cenários</button>
+    </div>
+    <div class="card">
+      <span class="pill gold">3</span>
+      <h3>Coach IA</h3>
+      <p class="muted">Converse com um coach que conhece todo o método. Escolha Claude ou OpenAI e use sua própria chave — guardada só no seu dispositivo.</p>
+      <button class="primary" data-action="go" data-arg="coach">Falar com o Coach</button>
+    </div>
+  </div>
+  <div class="note" style="margin-top:18px">
+    <b>Privacidade:</b> tudo (respostas, histórico de chat e chaves de API) fica salvo apenas no seu navegador, neste dispositivo. Nada é enviado para servidores da Aliança Divergente. O Coach IA envia suas mensagens diretamente para o provedor de IA que você configurar.
+  </div>
+</section>
+
+<!-- DIAGNÓSTICO -->
+<section id="diag" class="view">
+  <div class="kicker">Módulo 1</div>
+  <h1>Diagnóstico comportamental</h1>
+  <p class="lead">Responda com sinceridade pensando em como você age hoje, não em como gostaria de agir. Leva ~5 minutos.</p>
+  <div id="diagQuiz"></div>
+  <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+    <button class="primary" data-action="computeDiag">Ver meu perfil</button>
+    <button class="ghost" data-action="resetDiag">Limpar respostas</button>
+  </div>
+  <div id="diagResult"></div>
+</section>
+
+<!-- CENÁRIOS -->
+<section id="cen" class="view">
+  <div class="kicker">Módulo 2</div>
+  <h1>Cenários interativos</h1>
+  <p class="lead">Cada cenário testa uma postura. Escolha a resposta mais próxima do que você faria — o feedback mostra o padrão e como o método trataria a situação.</p>
+  <div id="cenBox"></div>
+  <div id="cenSummary"></div>
+</section>
+
+<!-- PLANO PERFEITO -->
+<section id="pp" class="view">
+  <div class="kicker">O Plano Perfeito</div>
+  <h1>Sonho Grande &amp; Painel do Progresso</h1>
+  <p class="lead">"Tudo começa com um sonho." Este é o seu Plano Perfeito: clareza sobre o que você quer, o custo que topa pagar, e o compromisso com isso.</p>
+
+  <h2>Meu Sonho Grande</h2>
+  <div class="card">
+    <label class="field">Descreva, sem filtro, o Sonho Grande que você está construindo</label>
+    <textarea id="ppSonho" rows="3" placeholder="Ex: Ter uma vida com saúde, recursos e relacionamentos leves, em que eu sinta prazer real em viver..."></textarea>
+    <button class="primary" id="ppSonhoSalvar" style="margin-top:10px">Salvar Sonho Grande</button>
+    <span id="ppSonhoStatus" class="muted" style="margin-left:10px"></span>
+  </div>
+
+  <h2>Painel do Progresso — 3 Pilares</h2>
+  <p class="muted">Você tem apenas 5 fichas para dividir entre os pilares. Distribua considerando o que mais fará você avançar na direção do Sonho Grande.</p>
+  <div class="card">
+    <div id="ppPilares"></div>
+    <div id="ppFichasTotal" style="margin-top:10px;font-weight:bold"></div>
+    <button class="primary" id="ppPilaresSalvar" style="margin-top:10px">Salvar Painel do Progresso</button>
+  </div>
+
+  <h2>Compromisso Mês a Mês</h2>
+  <p class="muted">"Não precisa ser fácil, só precisa ser feito." Compare Planejado x Realizado a cada mês.</p>
+  <div class="card">
+    <div id="ppMeses" style="overflow-x:auto"></div>
+    <button class="primary" id="ppMesesSalvar" style="margin-top:10px">Salvar Compromisso Mensal</button>
+  </div>
+
+  <h2>Lições Aprendidas (revisão trimestral)</h2>
+  <div class="card">
+    <div id="ppLicoes"></div>
+    <button class="primary" id="ppLicoesSalvar" style="margin-top:10px">Salvar Lições Aprendidas</button>
+  </div>
+
+  <h2>Carta de Compromisso</h2>
+  <div class="card">
+    <p class="muted" style="font-style:italic">"Plano certo é aquele cujo custo você está disposto a bancar." — Elton Euler</p>
+    <label class="field">Seu compromisso com você mesmo</label>
+    <textarea id="ppCartaTexto" rows="3" placeholder="Eu me comprometo a..."></textarea>
+    <label class="field">Assinatura (seu nome)</label>
+    <input type="text" id="ppCartaNome" placeholder="Seu nome">
+    <button class="primary" id="ppCartaSalvar" style="margin-top:10px">Assinar Carta de Compromisso</button>
+    <div id="ppCartaAtual" style="margin-top:14px"></div>
+  </div>
+</section>
+
+<!-- PLANO DE AÇÃO -->
+<section id="acao" class="view">
+  <div class="kicker">Ferramentas de ação</div>
+  <h1>Plano de Ação</h1>
+  <p class="lead">Onde o diagnóstico vira ação. "Percepção sem ação é pura ilusão."</p>
+
+  <h2>Plano de Ação PDA (Marca Passos)</h2>
+  <p class="muted">Perceber → Decidir → Agir. Cada linha é um padrão a romper, com prazo, status e (se precisar) um Guardião — um Aliado que cobra o resultado.</p>
+  <div class="card">
+    <form id="pdaForm">
+      <label class="field">Padrão / área da vida</label>
+      <input type="text" id="pdaPadrao" placeholder="Ex: Procrastinar a conversa com meu sócio" required>
+      <div class="grid g2">
+        <div>
+          <label class="field">Tipo</label>
+          <select id="pdaTipo"><option>Acontecimento</option><option>Comportamento</option><option>Relacionamento</option></select>
+        </div>
+        <div>
+          <label class="field">Pilar</label>
+          <select id="pdaPilar"><option>Geral</option><option>Financeiro</option><option>Saúde</option><option>Relacionamento</option></select>
+        </div>
+      </div>
+      <label class="field">Perceber (o que identifico do padrão)</label>
+      <input type="text" id="pdaPerceber" placeholder="O que estou percebendo?">
+      <label class="field">Decidir (decisão consciente)</label>
+      <input type="text" id="pdaDecidir" placeholder="O que eu decidi?">
+      <label class="field">Agir (ação concreta)</label>
+      <input type="text" id="pdaAgir" placeholder="O que vou fazer, exatamente?">
+      <div class="grid g2">
+        <div>
+          <label class="field">Prazo</label>
+          <input type="date" id="pdaPrazo">
+        </div>
+        <div>
+          <label class="field">Degrau da Postura</label>
+          <select id="pdaDegrau"><option>Reclamar/Justificar</option><option>Questionar</option><option>Propor/Aplicar</option></select>
+        </div>
+      </div>
+      <label class="field">Guardião (opcional — um Aliado que cobra o prazo)</label>
+      <input type="text" id="pdaGuardiao" list="guardioesList" placeholder="Nome do Guardião">
+      <datalist id="guardioesList"></datalist>
+      <button class="primary" type="submit" style="margin-top:12px">Adicionar ao Plano de Ação</button>
+    </form>
+  </div>
+  <div class="card">
+    <div id="pdaResumo"></div>
+    <div id="pdaList" style="margin-top:12px"></div>
+  </div>
+
+  <h2>Filtro PPP</h2>
+  <p class="muted">Precisa (o que preciso ver) · Prefere (ganho oculto: punir, poupar, unir ou afastar) · Permite (a medida exata do desafio).</p>
+  <div class="card">
+    <form id="pppForm">
+      <label class="field">Problema recorrente</label>
+      <input type="text" id="pppProblema" placeholder="Ex: Sempre adio a mesma decisão" required>
+      <label class="field">Precisa (o que estava oculto e preciso enxergar)</label>
+      <input type="text" id="pppPrecisa">
+      <label class="field">Prefere (ganho secundário: punir, poupar, unir ou afastar?)</label>
+      <input type="text" id="pppPrefere">
+      <label class="field">Permite (o desafio é do tamanho certo?)</label>
+      <input type="text" id="pppPermite">
+      <label class="field">Gatilho original</label>
+      <select id="pppGatilho"><option>Desejo</option><option>Dúvida</option><option>Decisão</option><option>Desistência</option></select>
+      <button class="primary" type="submit" style="margin-top:12px">Adicionar ao Filtro PPP</button>
+    </form>
+    <div id="pppList" style="margin-top:12px"></div>
+  </div>
+
+  <h2>Construindo o Não (Dependência / Proteção Emocional)</h2>
+  <p class="muted">Limite → Acordo → Retratação → Reparação → Guardião. Use para uma pessoa já mapeada no Núcleo Emocional (Dashboard) ou qualquer outra relação.</p>
+  <div class="card">
+    <form id="naoForm">
+      <label class="field">Pessoa</label>
+      <input type="text" id="naoPessoa" list="naoPessoasList" placeholder="Nome da pessoa" required>
+      <datalist id="naoPessoasList"></datalist>
+      <label class="field">Tipo</label>
+      <select id="naoTipo"><option value="Ativa">Ativa — eu interfiro (Núcleo Externo)</option><option value="Passiva">Passiva — interferem em mim (Núcleo Interno)</option></select>
+      <label class="field">Limite (o que vou estabelecer)</label>
+      <input type="text" id="naoLimite">
+      <label class="field">Acordo (o combinado com a pessoa)</label>
+      <input type="text" id="naoAcordo">
+      <label class="field">Retratação / Reparação</label>
+      <input type="text" id="naoReparacao">
+      <div class="grid g2">
+        <div>
+          <label class="field">Prazo</label>
+          <input type="date" id="naoPrazo">
+        </div>
+        <div>
+          <label class="field">Guardião</label>
+          <input type="text" id="naoGuardiao" list="guardioesList" placeholder="Nome do Guardião">
+        </div>
+      </div>
+      <button class="primary" type="submit" style="margin-top:12px">Adicionar</button>
+    </form>
+    <div id="naoList" style="margin-top:12px"></div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section id="dash" class="view">
+  <div class="kicker">Painel</div>
+  <h1>Dashboard</h1>
+  <p class="lead">Sua visão geral: o que o Diagnóstico e os Cenários revelaram, e um mapa interativo do seu Núcleo Emocional — quem interfere em você e em quem você interfere.</p>
+
+  <div id="dashSummary" class="grid g3"></div>
+
+  <h2>Mapa do Núcleo Emocional</h2>
+  <p class="muted">Posicione pessoas (família, trabalho, amizades) nos 4 quadrantes de padrão controlador. Nível 1 = interfere muito (mais perto do centro); nível 5 = interfere pouco (mais afastado).</p>
+  <div class="card">
+    <div class="note" style="margin-bottom:14px">
+      <b>Como diferenciar os 4 padrões</b> — pergunte-se: "o que essa pessoa faz quando as coisas dão errado ou ela se sente ferida?"
+      <div style="margin-top:8px;display:grid;gap:6px">
+        <div><span class="pill" style="background:#8A8AA3">Vítima Natural</span> sofre uma dificuldade real e momentânea, sem manipular ninguém com isso.</div>
+        <div><span class="pill" style="background:#5B7DB1">Vítima Intencional</span> exagera ou usa a dificuldade (real ou não) para mobilizar, culpar ou se isentar de responsabilidade.</div>
+        <div><span class="pill" style="background:#C0392B">Vingador</span> busca prejudicar ou diminuir quem a feriu; age por revanche.</div>
+        <div><span class="pill" style="background:#C9A24B;color:#3a2e0e">Narcisista</span> busca engrandecimento e benefício próprio, independente do efeito sobre o outro.</div>
+      </div>
+    </div>
+    <div id="nucleoTabs" style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="ghost nucleo-tab" data-action="switchNucleo" data-arg="interno">Núcleo Interno (quem interfere em mim)</button>
+      <button class="ghost nucleo-tab" data-action="switchNucleo" data-arg="externo">Núcleo Externo (em quem eu interfiro)</button>
+    </div>
+    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:1;min-width:280px;text-align:center">
+        <svg id="nucleoSvg" viewBox="0 0 380 380" style="width:100%;max-width:380px;height:auto"></svg>
+      </div>
+      <div style="flex:1;min-width:260px">
+        <form id="nucleoForm">
+          <label class="field">Nome da pessoa</label>
+          <input type="text" id="nuNome" placeholder="Ex: Mãe, Chefe, Amigo(a)..." required>
+          <label class="field">Vínculo (opcional)</label>
+          <input type="text" id="nuVinculo" placeholder="Ex: familiar, trabalho, amizade">
+          <label class="field">Quadrante (padrão controlador)</label>
+          <select id="nuQuad">
+            <option value="vn">Vítima Natural</option>
+            <option value="vi">Vítima Intencional</option>
+            <option value="vg">Vingador</option>
+            <option value="nc">Narcisista</option>
+          </select>
+          <label class="field">Nível de interferência: <span id="nuNivelLabel">3</span></label>
+          <input type="range" id="nuNivel" min="1" max="5" step="1" value="3" style="width:100%">
+          <button class="primary" type="submit" style="margin-top:12px">Adicionar ao mapa</button>
+        </form>
+      </div>
+    </div>
+    <div id="nucleoList" style="margin-top:16px"></div>
+  </div>
+
+  <h2>Resumo por quadrante</h2>
+  <div class="card">
+    <div id="nucleoResumo"></div>
+  </div>
+
+  <h2>Mapa da Teia dos Acontecimentos</h2>
+  <p class="muted">"O acaso é inexistente." Registre acontecimentos recentes, ligue-os a um relacionamento e a uma ponta solta. Ilumine a teia quando já tiver agido sobre eles.</p>
+  <div class="card">
+    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:1;min-width:280px;text-align:center">
+        <svg id="teiaSvg" viewBox="0 0 380 380" style="width:100%;max-width:380px;height:auto"></svg>
+      </div>
+      <div style="flex:1;min-width:260px">
+        <form id="teiaForm">
+          <label class="field">Acontecimento</label>
+          <input type="text" id="teTexto" placeholder="Ex: Discussão no trabalho, oportunidade perdida..." required>
+          <label class="field">Relacionamento ligado</label>
+          <input type="text" id="teRelacionamento" placeholder="Com quem isso se conecta?">
+          <label class="field">Ponta solta (valor perdido / prejuízo / conflito)</label>
+          <input type="text" id="tePontaSolta" placeholder="O que ficou por resolver?">
+          <label class="field">Tipo de padrão</label>
+          <select id="teTipo">
+            <option value="Acontecimento">Acontecimento</option>
+            <option value="Comportamento">Comportamento</option>
+            <option value="Relacionamento">Relacionamento</option>
+          </select>
+          <label class="field" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="teIluminado" style="width:auto"> Já iluminei esta teia (agi sobre ela)
+          </label>
+          <button class="primary" type="submit" style="margin-top:12px">Adicionar à teia</button>
+        </form>
+      </div>
+    </div>
+    <div id="teiaList" style="margin-top:16px"></div>
+    <div id="teiaResumo" class="muted" style="margin-top:10px"></div>
+  </div>
+
+  <h2>Termômetro da Vontade (Órbita da Vontade)</h2>
+  <p class="muted">A mudança só ocorre quando a Vontade Genuína é maior que a soma dos obstáculos — e quando a busca é por Opção (caminho novo), não por Confirmação (validar o padrão antigo → Estagnação).</p>
+  <div class="card">
+    <form id="termoForm">
+      <label class="field">Qual objetivo ou decisão você está avaliando?</label>
+      <input type="text" id="tmObjetivo" placeholder="Ex: Pedir demissão, ter a conversa difícil..." required>
+      <label class="field">Que tipo de busca você está fazendo?</label>
+      <select id="tmBusca">
+        <option value="opcao">Busca por Opção — estou explorando um caminho novo</option>
+        <option value="confirmacao">Busca por Confirmação — estou validando um padrão/registro antigo</option>
+      </select>
+      <label class="field">Vontade Genuína: <span id="tmVontadeLabel">5</span>/10</label>
+      <input type="range" id="tmVontade" min="0" max="10" value="5" style="width:100%">
+      <label class="field" style="margin-top:14px">Obstáculos (0 = ausente, 10 = intenso)</label>
+      <div id="tmObstaculos"></div>
+      <button class="primary" type="submit" style="margin-top:12px">Calcular / Registrar</button>
+    </form>
+    <div id="termoResultado" style="margin-top:16px"></div>
+    <div id="termoHist" style="margin-top:16px"></div>
+  </div>
+</section>
+
+<!-- COACH -->
+<section id="coach" class="view">
+  <div class="kicker">Módulo 3</div>
+  <h1>Coach IA</h1>
+  <p class="lead">Um coach guiado pelo método. Ele conhece seu diagnóstico (se você já fez) e responde como um Aliado experiente.</p>
+  <div id="coachStatus"></div>
+  <div id="chatwrap">
+    <div id="chatlog"></div>
+    <form id="chatform">
+      <textarea id="chatinput" rows="1" placeholder="Escreva sua situação ou pergunta..."></textarea>
+      <button class="primary" type="submit">Enviar</button>
+    </form>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+    <button class="ghost" data-action="newChat">Nova conversa</button>
+    <button class="ghost" data-action="go" data-arg="cfg">Configurar chave / modelo</button>
+  </div>
+</section>
+
+<!-- CONFIG -->
+<section id="cfg" class="view">
+  <div class="kicker">Configuração</div>
+  <h1>Conexão com o chat model</h1>
+  <div class="card">
+    <label class="field">Provedor de IA</label>
+    <select id="provider">
+      <option value="claude">Claude (Anthropic)</option>
+      <option value="openai">OpenAI (ChatGPT)</option>
+    </select>
+
+    <div id="claudeCfg">
+      <label class="field">Chave da API Claude (começa com sk-ant-...)</label>
+      <input type="password" id="claudeKey" placeholder="sk-ant-...">
+      <label class="field">Modelo Claude</label>
+      <select id="claudeModel">
+        <option value="claude-opus-4-8">Claude Opus 4.8 (mais capaz)</option>
+        <option value="claude-sonnet-5">Claude Sonnet 5 (equilíbrio)</option>
+        <option value="claude-haiku-4-5">Claude Haiku 4.5 (rápido/econômico)</option>
+      </select>
+      <p class="muted">Obtenha uma chave em console.anthropic.com. A chamada usa acesso direto do navegador.</p>
+    </div>
+
+    <div id="openaiCfg" style="display:none">
+      <label class="field">Chave da API OpenAI (começa com sk-...)</label>
+      <input type="password" id="openaiKey" placeholder="sk-...">
+      <label class="field">Modelo OpenAI</label>
+      <input type="text" id="openaiModel" value="gpt-4o">
+      <p class="muted">Obtenha uma chave em platform.openai.com. Você pode trocar o nome do modelo (ex.: gpt-4o, gpt-4o-mini, gpt-4.1).</p>
+    </div>
+
+    <div class="note" style="margin-top:14px">A chave fica salva apenas neste navegador (localStorage) e é enviada somente para o provedor escolhido. Nunca a compartilhe.</div>
+  </div>
+
+  <div class="card">
+    <h3>Dados salvos</h3>
+    <p class="muted">Diagnóstico, histórico de chat e configurações ficam neste dispositivo.</p>
+    <button class="ghost" data-action="wipeAll">Apagar todos os dados do app</button>
+  </div>
+
+  <div class="card">
+    <h3>Backup / transferir dados</h3>
+    <p class="muted">Como não há banco de dados, tudo fica salvo apenas neste navegador. Exporte um arquivo de backup para guardar seu progresso ou levá-lo para outro computador/celular — a chave de API nunca é incluída no arquivo.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="primary" data-action="exportarDados">Exportar backup (.json)</button>
+      <button class="ghost" data-action="triggerImport">Importar backup (.json)</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
+    <div class="note" style="margin-top:14px">Importar substitui os dados atuais deste dispositivo pelos do arquivo escolhido.</div>
+  </div>
+</section>
+
+<footer>
+  Aliança Divergente · App de apoio pessoal · Metodologia de Elton Euler.<br>
+  Ferramenta de uso pessoal do Aliado. Complementa a Planilha, a Apresentação e o Guia em PDF.
+</footer>
+</main>
+
+<script>
+/* ============================================================
+   NAVEGAÇÃO
+============================================================ */
+function go(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
+  document.getElementById(v).classList.add('active');
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  window.scrollTo(0,0);
+  if(v==='coach') refreshCoachStatus();
+  if(v==='dash'){ renderDashSummary(); renderNucleo(); renderTeia(); renderTermoHist(); }
+  if(v==='pp'){ renderPlanoPerfeito(); }
+  if(v==='acao'){ renderAcao(); }
+}
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
+
+/* ============================================================
+   DIAGNÓSTICO
+   Cada questão contribui pontos para dimensões:
+   arquétipos: vn (vítima natural), vi (vítima intencional), vg (vingador), nc (narcisista)
+   medo (0-100), culpa: real/ileg/dir/auto, dep: ativa/passiva, postura: reclamar/questionar/propor
+============================================================ */
+const LIK = ["Nunca","Raramente","Às vezes","Frequente","Sempre"];
+const diagItems = [
+  // NÚCLEO EMOCIONAL — como você se posiciona nas relações
+  {sec:"Núcleo Emocional — como você aparece nas relações", t:"Quando tenho uma dificuldade, tendo a supervalorizá-la para que os outros me ajudem ou me poupem.", type:"lik", map:{vi:1}},
+  {sec:"", t:"Quando algo dá errado, sinto uma dificuldade real e momentânea, mas não faço disso um caso.", type:"lik", map:{vn:1}},
+  {sec:"", t:"Quando me sinto prejudicado, tenho impulso de diminuir ou 'dar o troco' na outra pessoa.", type:"lik", map:{vg:1}},
+  {sec:"", t:"Costumo buscar o holofote e me engrandecer diante dos outros.", type:"lik", map:{nc:1}},
+  {sec:"", t:"Interfiro na vida de pessoas próximas 'para o bem delas', mesmo sem pedirem.", type:"lik", map:{dep_a:1, vg:.3}},
+  {sec:"", t:"Deixo que a opinião ou a reação de certas pessoas decida minhas percepções e ações.", type:"lik", map:{dep_p:1, vn:.3}},
+
+  // MEDO
+  {sec:"Medo", t:"Deixo de fazer coisas importantes por medo do que pode dar errado.", type:"lik", map:{medo:1}},
+  {sec:"", t:"Quando sinto medo, acredito nele e recuo, em vez de analisar custos e riscos.", type:"lik", map:{medo:1}},
+  {sec:"", t:"O medo costuma tomar decisões por mim.", type:"lik", map:{medo:1}},
+
+  // CULPA — tipo dominante (escolha única)
+  {sec:"Culpa", t:"A culpa que mais me trava hoje é...", type:"opt", options:[
+    {t:"Algo que eu fiz (ou deixei de fazer) e que ainda prejudica alguém.", map:{c_real:1}},
+    {t:"Algo que assumi como meu, mas que não era minha responsabilidade (ou não só minha).", map:{c_ileg:1}},
+    {t:"Uso o que aconteceu contra outra pessoa — não consigo soltar / perdoar.", map:{c_dir:1}},
+    {t:"Uso o passado contra mim mesmo — me privo e me obrigo por causa dele.", map:{c_auto:1}},
+    {t:"Não sinto uma culpa que me trave no momento.", map:{}}
+  ]},
+
+  // DEPENDÊNCIA — orientação
+  {sec:"Dependência Emocional", t:"É mais forte em mim...", type:"opt", options:[
+    {t:"Interferir na vida dos outros / querer controlar, salvar ou mudar alguém (Ativa).", map:{dep_a:2}},
+    {t:"Ser invadido — deixar que interfiram em mim e nas minhas decisões (Passiva).", map:{dep_p:2}},
+    {t:"Um pouco dos dois, dependendo da relação.", map:{dep_a:1, dep_p:1}},
+    {t:"Nenhum dos dois de forma marcante.", map:{}}
+  ]},
+
+  // POSTURA — Escada
+  {sec:"Postura (Escada da Postura)", t:"Diante de um problema recorrente, minha reação mais comum é...", type:"opt", options:[
+    {t:"Reclamar / justificar — a culpa costuma estar no mundo externo.", map:{p_rec:2}},
+    {t:"Questionar — paro para entender por que aquilo se repete.", map:{p_que:2}},
+    {t:"Propor / aplicar — decido uma ação e executo, mesmo com frio na barriga.", map:{p_pro:2}}
+  ]},
+  {sec:"", t:"Tenho o hábito de transformar percepção em ação concreta com prazo (Marca Passos / PDA).", type:"lik", map:{p_pro:1}},
+];
+
+let diagAns = JSON.parse(localStorage.getItem('ad_diag')||'{}');
+
+function renderDiag(){
+  const box = document.getElementById('diagQuiz'); box.innerHTML='';
+  diagItems.forEach((it,i)=>{
+    if(it.sec){ const h=document.createElement('h2'); h.textContent=it.sec; box.appendChild(h); }
+    const q=document.createElement('div'); q.className='q';
+    q.innerHTML='<div class="qt">'+(i+1)+'. '+it.t+'</div>';
+    if(it.type==='lik'){
+      const wrap=document.createElement('div'); wrap.className='likert';
+      LIK.forEach((lab,v)=>{
+        const id='q'+i+'_'+v;
+        const l=document.createElement('label'); l.htmlFor=id;
+        if(diagAns[i]==v) l.classList.add('sel');
+        l.innerHTML='<input type="radio" name="q'+i+'" id="'+id+'" value="'+v+'"><span>'+lab+'</span>';
+        l.querySelector('input').onchange=()=>{diagAns[i]=v;saveDiag();wrap.querySelectorAll('label').forEach(x=>x.classList.remove('sel'));l.classList.add('sel')};
+        wrap.appendChild(l);
+      });
+      q.appendChild(wrap);
+    } else {
+      const wrap=document.createElement('div'); wrap.className='opts';
+      it.options.forEach((op,v)=>{
+        const l=document.createElement('label');
+        if(diagAns[i]==v) l.classList.add('sel');
+        l.innerHTML='<input type="radio" name="q'+i+'" value="'+v+'">'+op.t;
+        l.querySelector('input').onchange=()=>{diagAns[i]=v;saveDiag();wrap.querySelectorAll('label').forEach(x=>x.classList.remove('sel'));l.classList.add('sel')};
+        wrap.appendChild(l);
+      });
+      q.appendChild(wrap);
+    }
+    box.appendChild(q);
+  });
+}
+function saveDiag(){localStorage.setItem('ad_diag',JSON.stringify(diagAns));}
+function resetDiag(){diagAns={};saveDiag();renderDiag();document.getElementById('diagResult').innerHTML='';}
+
+function computeDiag(){
+  const s={vn:0,vi:0,vg:0,nc:0,medo:0,medoMax:0,c_real:0,c_ileg:0,c_dir:0,c_auto:0,dep_a:0,dep_p:0,p_rec:0,p_que:0,p_pro:0};
+  diagItems.forEach((it,i)=>{
+    const a=diagAns[i];
+    if(a===undefined) return;
+    let map;
+    if(it.type==='lik'){
+      const factor=Number(a)/4; // 0..1
+      map=it.map;
+      for(const k in map){ if(k==='medo'){s.medo+=factor*map[k];s.medoMax+=map[k];} else s[k]=(s[k]||0)+factor*map[k]; }
+    } else {
+      map=it.options[a].map;
+      for(const k in map){ s[k]=(s[k]||0)+map[k]; }
+    }
+  });
+  const medoPct=s.medoMax? Math.round(s.medo/s.medoMax*100):0;
+  // arquétipo dominante
+  const arqs=[['Vítima Natural',s.vn,'Apresenta dificuldade real e momentânea. Cuidado para não usar a dificuldade genuína como lugar de permanência.'],
+    ['Vítima Intencional',s.vi,'Tende a supervalorizar a dificuldade para mobilizar os outros. O caminho é assumir responsabilidade em vez de amplificar o problema.'],
+    ['Vingador',s.vg,'Busca prejuízo ou diminuição do outro quando se sente ferido. O Combate à Culpa (Dirigida) e a Responsabilidade Extrema são centrais.'],
+    ['Narcisista',s.nc,'Busca engrandecimento e benefício próprio. A congruência (Baile das Máscaras) ajuda a alinhar postura e intenção.']];
+  arqs.sort((a,b)=>b[1]-a[1]);
+  const arqTop=arqs[0][1]>0?arqs[0]:['Equilibrado',0,'Sem um padrão controlador dominante evidente nas respostas.'];
+  // culpa dominante
+  const culpas=[['Real',s.c_real,'Você fez ou deixou de fazer algo. Caminho: retratação e reparação (Guia, cap. 14).'],
+    ['Ilegítima',s.c_ileg,'Carrega o que não era sua responsabilidade. Caminho: comunicar o novo limite.'],
+    ['Dirigida',s.c_dir,'Usa o passado contra alguém. Caminho: perdoar e liberar a obrigação/privação.'],
+    ['Autoculpa',s.c_auto,'Usa o passado contra si. Caminho: PDA Memorável de autoperdão.']];
+  culpas.sort((a,b)=>b[1]-a[1]);
+  const culpaTop=culpas[0][1]>0?culpas[0]:['Nenhuma travando',0,'Nenhum tipo de culpa se destacou como travador agora.'];
+  // dependência
+  const depTxt = s.dep_a>s.dep_p ? 'Ativa (Núcleo Externo) — você tende a interferir na vida dos outros.' :
+                 s.dep_p>s.dep_a ? 'Passiva (Núcleo Interno) — você tende a ser invadido pelos outros.' :
+                 (s.dep_a>0? 'Mista — ativa e passiva se equilibram.' : 'Sem tendência marcante.');
+  // postura
+  const post=[['Reclamar / Justificar',s.p_rec],['Questionar',s.p_que],['Propor / Aplicar',s.p_pro]];
+  post.sort((a,b)=>b[1]-a[1]);
+  const postTop=post[0][1]>0?post[0][0]:'Não definida';
+
+  // roteiro recomendado
+  const roteiro=[];
+  if(medoPct>=50) roteiro.push('Protocolo de Combate ao Medo — o medo está pesando nas suas decisões.');
+  if(s.dep_a>0||s.dep_p>0) roteiro.push('Núcleo Emocional + Dependência Emocional ('+(s.dep_a>=s.dep_p?'Ativa':'Passiva')+') — mapeie as relações e construa o "Não".');
+  if(culpaTop[1]>0) roteiro.push('Combate à Culpa — tipo '+culpaTop[0]+': '+culpaTop[2]);
+  roteiro.push('Método PDA — transforme cada padrão em Perceber → Decidir → Agir, com prazo (use a planilha).');
+  if(postTop==='Reclamar / Justificar') roteiro.push('Escada da Postura — seu ponto de partida é sair de "reclamar" para "questionar" e "propor".');
+
+  const res=document.getElementById('diagResult');
+  res.innerHTML =
+    '<div class="card"><div class="kicker">Seu perfil</div><h2 style="margin-top:.2em">Resumo comportamental</h2>'
+    +'<div class="result-row"><span><b>Arquétipo dominante</b><br><span class="muted">'+arqTop[2]+'</span></span><span class="pill gold">'+arqTop[0]+'</span></div>'
+    +'<div class="result-row"><span><b>Nível de medo nas decisões</b></span><span style="min-width:140px"><div class="bar"><div style="width:'+medoPct+'%"></div></div><span class="muted">'+medoPct+'%</span></span></div>'
+    +'<div class="result-row"><span><b>Culpa que mais trava</b><br><span class="muted">'+culpaTop[2]+'</span></span><span class="pill">'+culpaTop[0]+'</span></div>'
+    +'<div class="result-row"><span><b>Dependência Emocional</b></span><span class="tag">'+depTxt+'</span></div>'
+    +'<div class="result-row"><span><b>Postura predominante</b></span><span class="pill">'+postTop+'</span></div>'
+    +'</div>'
+    +'<div class="card"><h2 style="margin-top:0">Roteiro de protocolos recomendado</h2><ol class="muted" style="font-size:14.5px;line-height:1.7">'
+    + roteiro.map(r=>'<li>'+r+'</li>').join('') + '</ol>'
+    +'<div class="steps"><div class="step"><b>Perceber</b>o padrão</div><div class="step"><b>Decidir</b>conscientemente</div><div class="step"><b>Agir</b>com prazo</div></div>'
+    +'<button class="primary" data-action="sendDiagToCoach">Levar meu perfil ao Coach IA</button> '
+    +'<button class="ghost" data-action="print">Salvar / imprimir (PDF)</button></div>';
+
+  const profile={arq:arqTop[0],medo:medoPct,culpa:culpaTop[0],dep:depTxt,postura:postTop,roteiro};
+  localStorage.setItem('ad_profile',JSON.stringify(profile));
+  res.scrollIntoView({behavior:'smooth'});
+}
+function sendDiagToCoach(){
+  const p=JSON.parse(localStorage.getItem('ad_profile')||'null');
+  if(!p) return;
+  go('coach');
+  const txt='Aqui está meu diagnóstico: arquétipo dominante '+p.arq+', medo nas decisões '+p.medo+'%, culpa '+p.culpa+', '+p.dep+', postura '+p.postura+'. Por onde você sugere que eu comece?';
+  document.getElementById('chatinput').value=txt;
+}
+
+/* ============================================================
+   CENÁRIOS INTERATIVOS
+============================================================ */
+const scenarios=[
+  {t:"O medo do novo", ctx:"Você recebe a chance de assumir um projeto/posição maior. Sente um forte frio na barriga e a vontade de recusar 'para não dar errado'.",
+   opts:[
+     {t:"Recuso — é arriscado demais e posso falhar.", lvl:"bad", pat:"Medo no comando",
+      fb:"Aqui o medo tomou a decisão por você. O método: não elimine o medo, use-o como sinal. Preencha o Mapeamento das Possibilidades (acreditar e não fazer nada / confrontar e dar errado / confrontar e dar certo) e decida pelo cenário que constrói seu futuro."},
+     {t:"Analiso custos, riscos e alternativas antes de decidir.", lvl:"good", pat:"Memorável",
+      fb:"Postura memorável: você analisa e encara em vez de fugir. Esse é o PDA Memorável — nova Percepção → Decisão consciente → Ação com prazo."},
+     {t:"Aceito no impulso, sem pensar nas consequências.", lvl:"mid", pat:"Impulso",
+      fb:"Coragem é bom, mas sem análise vira aposta. Rode o PDA: perceba o padrão, decida com base em custos/riscos reais e aja com um plano."}
+   ]},
+  {t:"A frustração de alguém", ctx:"Você decide mudar algo importante (carreira, hábito, relação). Uma pessoa próxima demonstra que vai ficar frustrada com a sua mudança.",
+   opts:[
+     {t:"Desisto ou adio para não frustrar essa pessoa.", lvl:"bad", pat:"Dependência Passiva",
+      fb:"Você está pagando com a sua paz a paz do outro. 'A sua paz vai custar a frustração de alguém.' A frustração dela tende a passar; a sua, se você vive para agradar, se acumula. A expectativa é dela — não é sua responsabilidade carregar."},
+     {t:"Sigo com a mudança e acolho a frustração dela sem tentar controlá-la.", lvl:"good", pat:"Permissão Interna",
+      fb:"Congruência: você precisa da sua permissão interna, não da aprovação externa. Crescer incomoda quem não cresce — e tudo bem."},
+     {t:"Sigo, mas fico remoendo culpa e tentando convencer a pessoa.", lvl:"mid", pat:"Culpa Dirigida",
+      fb:"Meio caminho: você agiu, mas carrega culpa. Considere o Protocolo de Combate à Culpa e o Contraste de Controle — não tente vencer ou convencer o outro."}
+   ]},
+  {t:"O padrão que se repete", ctx:"Pela terceira vez você se envolve no mesmo tipo de conflito com pessoas diferentes. A situação 'aconteceu de novo'.",
+   opts:[
+     {t:"Azar / as pessoas é que são difíceis.", lvl:"bad", pat:"Reclamar/Justificar",
+      fb:"O acaso é inexistente. Pela Teia dos Acontecimentos, o que se repete está ligado a um padrão seu e a um relacionamento. Reclamar mantém você no degrau da estagnação."},
+     {t:"Pergunto: o que em mim faz isso se repetir, e com quem?", lvl:"good", pat:"Questionar",
+      fb:"Ótimo — você subiu na Escada da Postura. Mapeie a ponta solta na Teia e aplique o Filtro PPP (o que Precisa ver, Prefere manter, Permite enfrentar)."},
+     {t:"Ignoro e sigo em frente rápido.", lvl:"mid", pat:"Evitação",
+      fb:"Seguir sem perceber tende a repetir o ciclo. Use o Ciclo da Pré-Queda: onde você trava — Desejo, Dúvida, Decisão ou Desistência do padrão antigo?"}
+   ]},
+  {t:"Procrastinação", ctx:"Há semanas você adia uma ação que sabe que te faria avançar. Sempre aparece um motivo para deixar para depois.",
+   opts:[
+     {t:"É só falta de disciplina, vou tentar 'me forçar' mais.", lvl:"mid", pat:"Superfície",
+      fb:"Pode ajudar, mas o método vê mais fundo: procrastinar é um compromisso relacional oculto. Pergunte quem seria impactado se você mudasse agora."},
+     {t:"Investigo qual 'combinado oculto' e quem está por trás do adiamento.", lvl:"good", pat:"Ponto Cego Relacional",
+      fb:"Exato: rode o exercício das 5 colunas (adiamento, impacto, consequências, ponto cego relacional). Depois fracione a ação — uma por semana."},
+     {t:"Espero o momento perfeito / me sentir pronto.", lvl:"bad", pat:"Ilusão de Avanço",
+      fb:"Esperar o momento perfeito é a armadilha. 'Percepção sem ação é pura ilusão.' Escolha uma ação concreta hoje — o jogo acaba na ação."}
+   ]},
+  {t:"Alguém invade seu núcleo", ctx:"Uma pessoa insiste em interferir nas suas decisões e emoções, mesmo depois de você sinalizar desconforto.",
+   opts:[
+     {t:"Cedo para evitar conflito — é mais fácil.", lvl:"bad", pat:"Dependência Passiva",
+      fb:"Ceder alimenta a invasão. Rode o Protocolo de Dependência Emocional Passiva: construa o Não — limite, acordo, e um guardião para sua decisão."},
+     {t:"Estabeleço um limite claro e combino como a relação seguirá.", lvl:"good", pat:"Construir o Não",
+      fb:"Perfeito. Limite + Acordo + Proteção Emocional. Se houver insistência ou culpa/ataque/desprezo, rode o Protocolo de Proteção Emocional."},
+     {t:"Reajo com raiva e tento revidar.", lvl:"mid", pat:"Vingador",
+      fb:"A reação vingativa vira novo ciclo. Aperte o 'botão de pânico', encerre a conversa e retome depois — sem tentar diminuir o outro."}
+   ]}
+];
+let cenState={i:0,picks:[]};
+function renderCen(){
+  const box=document.getElementById('cenBox');
+  const sum=document.getElementById('cenSummary'); sum.innerHTML='';
+  if(cenState.i>=scenarios.length){ renderCenSummary(); return; }
+  const s=scenarios[cenState.i];
+  box.innerHTML='<div class="card"><span class="tag">Cenário '+(cenState.i+1)+' de '+scenarios.length+'</span>'
+    +'<h2 style="margin-top:.3em">'+s.t+'</h2><p>'+s.ctx+'</p><div id="cenOpts" class="opts"></div><div id="cenFb"></div></div>';
+  const o=document.getElementById('cenOpts');
+  s.opts.forEach((op,i)=>{
+    const l=document.createElement('label'); l.innerHTML=op.t;
+    l.onclick=()=>pickCen(i,l);
+    o.appendChild(l);
+  });
+}
+function pickCen(i,l){
+  const s=scenarios[cenState.i], op=s.opts[i];
+  document.querySelectorAll('#cenOpts label').forEach(x=>{x.classList.remove('sel');x.style.pointerEvents='none';});
+  l.classList.add('sel');
+  cenState.picks.push({sc:s.t,pat:op.pat,lvl:op.lvl});
+  const cls=op.lvl==='good'?'fb-good':op.lvl==='mid'?'fb-mid':'fb-bad';
+  document.getElementById('cenFb').innerHTML='<div class="scenario-fb '+cls+'"><b>Padrão: '+op.pat+'</b><br>'+op.fb+'</div>'
+    +'<button class="primary" style="margin-top:10px" data-action="nextCen">'+(cenState.i<scenarios.length-1?'Próximo cenário':'Ver resultado')+'</button>';
+}
+function nextCen(){cenState.i++;renderCen();window.scrollTo(0,0);}
+function renderCenSummary(){
+  document.getElementById('cenBox').innerHTML='';
+  const good=cenState.picks.filter(p=>p.lvl==='good').length;
+  const bad=cenState.picks.filter(p=>p.lvl==='bad').length;
+  const score=Math.round(good/scenarios.length*100);
+  let verdict = score>=70?'Postura memorável predominante — você tende a perceber, decidir e agir.':
+                score>=40?'Postura em transição — você já questiona, mas ainda escorrega para reclamar/evitar em alguns pontos.':
+                'Postura de partida — muitos padrões antigos ainda decidem por você. Ótimo ponto para começar os protocolos.';
+  document.getElementById('cenSummary').innerHTML='<div class="card"><div class="kicker">Resultado</div>'
+    +'<h2 style="margin-top:.2em">Sua postura nos cenários</h2>'
+    +'<div class="bar"><div style="width:'+score+'%"></div></div><p class="muted">'+score+'% de escolhas memoráveis · '+good+' avançadas · '+bad+' de padrão antigo</p>'
+    +'<p>'+verdict+'</p>'
+    +'<p class="muted">Padrões escolhidos: '+cenState.picks.map(p=>p.pat).join(' · ')+'</p>'
+    +'<button class="primary" data-action="restartCen">Refazer cenários</button> '
+    +'<button class="ghost" data-action="go" data-arg="coach">Discutir com o Coach IA</button></div>';
+  localStorage.setItem('ad_ceno', JSON.stringify({score,good,bad,total:scenarios.length,picks:cenState.picks,verdict}));
+}
+function restartCen(){cenState={i:0,picks:[]};renderCen();window.scrollTo(0,0);}
+
+/* ============================================================
+   DASHBOARD — resumo geral
+============================================================ */
+function renderDashSummary(){
+  const p=JSON.parse(localStorage.getItem('ad_profile')||'null');
+  const c=JSON.parse(localStorage.getItem('ad_ceno')||'null');
+  const box=document.getElementById('dashSummary');
+  let html='';
+  if(p){
+    html+='<div class="card"><div class="kicker">Diagnóstico</div>'
+      +'<div class="result-row"><span>Arquétipo dominante</span><span class="pill gold">'+p.arq+'</span></div>'
+      +'<div class="result-row"><span>Medo nas decisões</span><span class="tag">'+p.medo+'%</span></div>'
+      +'<div class="result-row"><span>Culpa que mais trava</span><span class="pill">'+p.culpa+'</span></div>'
+      +'<div class="result-row" style="border-bottom:none"><span>Postura</span><span class="pill">'+p.postura+'</span></div>'
+      +'<button class="ghost" style="margin-top:10px" data-action="go" data-arg="diag">Refazer diagnóstico</button></div>';
+  } else {
+    html+='<div class="card"><div class="kicker">Diagnóstico</div><p class="muted">Você ainda não fez o diagnóstico.</p>'
+      +'<button class="primary" data-action="go" data-arg="diag">Fazer agora</button></div>';
+  }
+  if(c){
+    html+='<div class="card"><div class="kicker">Cenários</div>'
+      +'<div class="bar"><div style="width:'+c.score+'%"></div></div>'
+      +'<p class="muted">'+c.score+'% memorável · '+c.good+'/'+c.total+' avançadas</p>'
+      +'<p class="muted">'+c.verdict+'</p>'
+      +'<button class="ghost" style="margin-top:6px" data-action="go" data-arg="cen">Refazer cenários</button></div>';
+  } else {
+    html+='<div class="card"><div class="kicker">Cenários</div><p class="muted">Você ainda não fez os cenários.</p>'
+      +'<button class="primary" data-action="go" data-arg="cen">Fazer agora</button></div>';
+  }
+  const ni=loadNucleo();
+  const totalPessoas=ni.interno.length+ni.externo.length;
+  html+='<div class="card"><div class="kicker">Núcleo Emocional</div>'
+    +'<div class="result-row" style="border-bottom:none"><span>Pessoas mapeadas</span><span class="pill gold">'+totalPessoas+'</span></div>'
+    +'<p class="muted">'+ni.interno.length+' no núcleo interno · '+ni.externo.length+' no núcleo externo</p></div>';
+  const teia=loadTeia();
+  const ilum=teia.filter(e=>e.iluminado).length;
+  if(teia.length){
+    html+='<div class="card"><div class="kicker">Teia dos Acontecimentos</div>'
+      +'<div class="bar"><div style="width:'+(teia.length?Math.round(ilum/teia.length*100):0)+'%"></div></div>'
+      +'<p class="muted">'+teia.length+' acontecimento(s) mapeado(s) · '+ilum+' iluminado(s)</p></div>';
+  } else {
+    html+='<div class="card"><div class="kicker">Teia dos Acontecimentos</div><p class="muted">Nenhum acontecimento mapeado ainda.</p></div>';
+  }
+  const tl=JSON.parse(localStorage.getItem('ad_termo_last')||'null');
+  if(tl){
+    html+='<div class="card"><div class="kicker">Termômetro da Vontade</div>'
+      +'<div class="result-row"><span>Último registro</span><span class="tag">'+tl.data+'</span></div>'
+      +'<div class="result-row" style="border-bottom:none"><span>'+escapeHtml(tl.objetivo)+'</span><span class="pill '+(tl.cls==='good'?'gold':'')+'">'+(tl.busca==='opcao'?'Opção':'Confirmação')+'</span></div>'
+      +'<p class="muted">Vontade '+tl.vontade+' vs Obstáculos '+tl.mediaObst+'</p></div>';
+  } else {
+    html+='<div class="card"><div class="kicker">Termômetro da Vontade</div><p class="muted">Nenhum registro ainda.</p></div>';
+  }
+  const pda=loadPda();
+  if(pda.length){
+    const pdaConcluido=pda.filter(x=>x.status==='Concluído').length;
+    const pdaPct=Math.round(pdaConcluido/pda.length*100);
+    html+='<div class="card"><div class="kicker">Plano de Ação PDA</div>'
+      +'<div class="bar"><div style="width:'+pdaPct+'%"></div></div>'
+      +'<p class="muted">'+pdaPct+'% concluído · '+pdaConcluido+'/'+pda.length+' padrões</p>'
+      +'<button class="ghost" style="margin-top:6px" data-action="go" data-arg="acao">Ver Plano de Ação</button></div>';
+  } else {
+    html+='<div class="card"><div class="kicker">Plano de Ação PDA</div><p class="muted">Nenhum padrão registrado ainda.</p>'
+      +'<button class="primary" data-action="go" data-arg="acao">Começar agora</button></div>';
+  }
+  const sonho=loadSonho();
+  const pilares=loadPilares();
+  const fichasUsadas=PILARES.reduce((a,p)=>a+Number((pilares[p]||{}).fichas||0),0);
+  if(sonho){
+    html+='<div class="card"><div class="kicker">Plano Perfeito</div>'
+      +'<p class="muted" style="font-style:italic">"'+escapeHtml(sonho.slice(0,90))+(sonho.length>90?'...':'')+'"</p>'
+      +'<div class="result-row" style="border-bottom:none"><span>Fichas de foco distribuídas</span><span class="pill '+(fichasUsadas===5?'gold':'')+'">'+fichasUsadas+'/5</span></div>'
+      +'<button class="ghost" style="margin-top:6px" data-action="go" data-arg="pp">Ver Plano Perfeito</button></div>';
+  } else {
+    html+='<div class="card"><div class="kicker">Plano Perfeito</div><p class="muted">Você ainda não definiu seu Sonho Grande.</p>'
+      +'<button class="primary" data-action="go" data-arg="pp">Definir agora</button></div>';
+  }
+  box.innerHTML=html;
+}
+
+/* ============================================================
+   MAPA DO NÚCLEO EMOCIONAL (interativo, SVG)
+============================================================ */
+const QUAD={
+  vn:{label:'Vítima Natural', angleRange:[180,270], center:225, color:'#8A8AA3'},
+  vi:{label:'Vítima Intencional', angleRange:[270,360], center:315, color:'#2F6F6A'},
+  vg:{label:'Vingador', angleRange:[90,180], center:135, color:'#C0392B'},
+  nc:{label:'Narcisista', angleRange:[0,90], center:45, color:'#C9A24B'}
+};
+let nucleoTab='interno';
+function loadNucleo(){
+  const d=JSON.parse(localStorage.getItem('ad_nucleo')||'null');
+  return d || {interno:[],externo:[]};
+}
+function saveNucleo(d){ localStorage.setItem('ad_nucleo', JSON.stringify(d)); }
+function switchNucleo(tab){
+  nucleoTab=tab;
+  nucleoEditingId=null;
+  document.querySelectorAll('.nucleo-tab').forEach(b=>b.classList.toggle('active', b.dataset.arg===tab));
+  renderNucleo();
+}
+function polar(cx,cy,r,deg){ const rad=deg*Math.PI/180; return {x:(cx+r*Math.cos(rad)).toFixed(1), y:(cy+r*Math.sin(rad)).toFixed(1)}; }
+function wedgePath(cx,cy,r,a1,a2){
+  const p1=polar(cx,cy,r,a1), p2=polar(cx,cy,r,a2);
+  return 'M'+cx+','+cy+' L'+p1.x+','+p1.y+' A'+r+','+r+' 0 0 1 '+p2.x+','+p2.y+' Z';
+}
+function nivelRadius(n){ return 40+(n-1)*28.75; }
+function renderNucleoSvg(){
+  const cx=190,cy=190,rMax=160;
+  const data=loadNucleo()[nucleoTab];
+  let svg='';
+  // wedges
+  for(const k in QUAD){
+    const q=QUAD[k];
+    svg+='<path d="'+wedgePath(cx,cy,rMax,q.angleRange[0],q.angleRange[1])+'" fill="'+q.color+'" fill-opacity="0.08" stroke="'+q.color+'" stroke-opacity="0.3"/>';
+  }
+  // rings
+  [77,114,151,160].forEach(r=>{ svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="#D8D8E4" stroke-width="1"/>'; });
+  // quadrant labels
+  for(const k in QUAD){
+    const q=QUAD[k], p=polar(cx,cy,rMax+14,q.center);
+    svg+='<text x="'+p.x+'" y="'+p.y+'" font-size="10.5" font-weight="bold" fill="'+q.color+'" text-anchor="middle" dominant-baseline="middle">'+q.label+'</text>';
+  }
+  // center
+  svg+='<circle cx="'+cx+'" cy="'+cy+'" r="26" fill="#1B1B3A"/><text x="'+cx+'" y="'+cy+'" font-size="11" font-weight="bold" fill="#fff" text-anchor="middle" dominant-baseline="middle">VOCÊ</text>';
+  // points
+  data.forEach(person=>{
+    const q=QUAD[person.quad];
+    const angle=q.center+person.jitter;
+    const r=nivelRadius(person.nivel);
+    const p=polar(cx,cy,r,angle);
+    const lp=polar(cx,cy,r+15,angle);
+    svg+='<circle cx="'+p.x+'" cy="'+p.y+'" r="8" fill="'+q.color+'" stroke="#fff" stroke-width="1.5"><title>'+person.nome+' ('+q.label+', nível '+person.nivel+')</title></circle>';
+    svg+='<text x="'+lp.x+'" y="'+lp.y+'" font-size="9" fill="#23233D" text-anchor="middle">'+escapeHtml(person.nome.slice(0,12))+'</text>';
+  });
+  document.getElementById('nucleoSvg').innerHTML=svg;
+}
+function escapeHtml(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+let nucleoEditingId=null;
+function renderNucleoList(){
+  const data=loadNucleo()[nucleoTab];
+  const box=document.getElementById('nucleoList');
+  if(data.length===0){ box.innerHTML='<p class="muted">Nenhuma pessoa mapeada ainda neste núcleo.</p>'; return; }
+  box.innerHTML='<h3 style="margin-top:0">Pessoas mapeadas</h3>'+data.map(p=>{
+    const q=QUAD[p.quad];
+    if(nucleoEditingId===p.id){
+      return '<div style="padding:10px 0;border-bottom:1px dashed var(--line)">'
+        +'<b>'+escapeHtml(p.nome)+'</b>'
+        +'<div class="grid g2" style="margin-top:8px">'
+        +'<div><label class="field">Vínculo</label><input type="text" id="nuEditVinculo" value="'+escapeHtml(p.vinculo||'')+'"></div>'
+        +'<div><label class="field">Quadrante</label><select id="nuEditQuad">'
+        +Object.keys(QUAD).map(k=>'<option value="'+k+'"'+(k===p.quad?' selected':'')+'>'+QUAD[k].label+'</option>').join('')
+        +'</select></div></div>'
+        +'<label class="field">Nível de interferência: <span id="nuEditNivelLabel">'+p.nivel+'</span></label>'
+        +'<input type="range" id="nuEditNivel" min="1" max="5" step="1" value="'+p.nivel+'" style="width:100%">'
+        +'<div style="display:flex;gap:8px;margin-top:10px">'
+        +'<button class="primary" data-action="saveNucleoEdit" data-arg="'+p.id+'">Salvar</button>'
+        +'<button class="ghost" data-action="cancelNucleoEdit">Cancelar</button>'
+        +'</div></div>';
+    }
+    return '<div class="nlist-row"><span><span class="qbadge" style="background:'+q.color+'"></span><b>'+escapeHtml(p.nome)+'</b>'
+      +(p.vinculo?' · '+escapeHtml(p.vinculo):'')+' · '+q.label+' · nível '+p.nivel+'</span>'
+      +'<span><button data-action="editNucleoStart" data-arg="'+p.id+'" style="color:var(--navy)">editar</button> '
+      +'<button data-action="removeNucleo" data-arg="'+p.id+'">remover</button></span></div>';
+  }).join('');
+  const rangeEl=document.getElementById('nuEditNivel');
+  if(rangeEl) rangeEl.addEventListener('input',()=>{ document.getElementById('nuEditNivelLabel').textContent=rangeEl.value; });
+}
+function editNucleoStart(id){ nucleoEditingId=id; renderNucleoList(); }
+function cancelNucleoEdit(){ nucleoEditingId=null; renderNucleoList(); }
+function saveNucleoEdit(id){
+  const d=loadNucleo();
+  const p=d[nucleoTab].find(x=>x.id===id);
+  if(!p) return;
+  p.vinculo=document.getElementById('nuEditVinculo').value.trim();
+  p.quad=document.getElementById('nuEditQuad').value;
+  p.nivel=Number(document.getElementById('nuEditNivel').value);
+  saveNucleo(d);
+  nucleoEditingId=null;
+  renderNucleo();
+  renderDashSummary();
+}
+function renderNucleoResumo(){
+  const d=loadNucleo();
+  const box=document.getElementById('nucleoResumo');
+  let html='';
+  for(const k in QUAD){
+    const q=QUAD[k];
+    const ci=d.interno.filter(p=>p.quad===k).length;
+    const ce=d.externo.filter(p=>p.quad===k).length;
+    const max=Math.max(1,d.interno.length,d.externo.length);
+    html+='<div class="resumo-row"><span class="lbl"><span class="qbadge" style="background:'+q.color+'"></span>'+q.label+'</span>'
+      +'<span class="bars"><div class="minibar"><div style="width:'+(ci/max*100)+'%;background:'+q.color+'"></div></div>'
+      +'<div class="minibar"><div style="width:'+(ce/max*100)+'%;background:'+q.color+';opacity:.55"></div></div></span>'
+      +'<span class="cnt">Int '+ci+' · Ext '+ce+'</span></div>';
+  }
+  box.innerHTML='<p class="muted" style="margin-top:0">Barra sólida = Núcleo Interno · barra clara = Núcleo Externo</p>'+html;
+}
+function renderNucleo(){
+  document.querySelectorAll('.nucleo-tab').forEach(b=>b.classList.toggle('active', b.dataset.arg===nucleoTab));
+  renderNucleoSvg();
+  renderNucleoList();
+  renderNucleoResumo();
+}
+function addNucleoPerson(e){
+  e.preventDefault();
+  const nome=document.getElementById('nuNome').value.trim();
+  if(!nome) return;
+  const vinculo=document.getElementById('nuVinculo').value.trim();
+  const quad=document.getElementById('nuQuad').value;
+  const nivel=Number(document.getElementById('nuNivel').value);
+  const d=loadNucleo();
+  d[nucleoTab].push({id:Date.now()+'_'+Math.random().toString(36).slice(2,7), nome, vinculo, quad, nivel, jitter:(Math.random()*50-25)});
+  saveNucleo(d);
+  document.getElementById('nuNome').value='';
+  document.getElementById('nuVinculo').value='';
+  renderNucleo();
+  renderDashSummary();
+}
+function removeNucleo(id){
+  const d=loadNucleo();
+  d[nucleoTab]=d[nucleoTab].filter(p=>p.id!==id);
+  saveNucleo(d);
+  renderNucleo();
+  renderDashSummary();
+}
+
+/* ============================================================
+   TEIA DOS ACONTECIMENTOS (interativo, SVG em rede)
+============================================================ */
+const TEIA_TIPO_COLOR={Acontecimento:'#2F6F6A', Comportamento:'#8A8AA3', Relacionamento:'#C0392B'};
+function loadTeia(){ return JSON.parse(localStorage.getItem('ad_teia')||'[]'); }
+function saveTeia(d){ localStorage.setItem('ad_teia', JSON.stringify(d)); }
+function renderTeiaSvg(){
+  const data=loadTeia();
+  const cx=190,cy=190,R=150;
+  const n=data.length;
+  const pts=data.map((ev,i)=>({ev, angle:n?i*(360/n):0, p:polar(cx,cy,R,n?i*(360/n):0)}));
+  let svg='';
+  if(n>2){
+    for(let i=0;i<n;i++){
+      const a=pts[i].p, b=pts[(i+1)%n].p;
+      svg+='<line x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'" stroke="#D8D8E4" stroke-width="1"/>';
+    }
+  }
+  pts.forEach(pt=>{
+    svg+='<line x1="'+cx+'" y1="'+cy+'" x2="'+pt.p.x+'" y2="'+pt.p.y+'" stroke="'+(pt.ev.iluminado?'#C9A24B':'#D8D8E4')+'" stroke-width="'+(pt.ev.iluminado?2:1)+'"/>';
+  });
+  svg+='<circle cx="'+cx+'" cy="'+cy+'" r="34" fill="#C9A24B" opacity="0.22"/>';
+  svg+='<circle cx="'+cx+'" cy="'+cy+'" r="23" fill="#1B1B3A"/>';
+  svg+='<text x="'+cx+'" y="'+cy+'" font-size="8.5" font-weight="bold" fill="#fff" text-anchor="middle" dominant-baseline="middle">VONTADE</text>';
+  pts.forEach(pt=>{
+    const color=pt.ev.iluminado?'#C9A24B':(TEIA_TIPO_COLOR[pt.ev.tipo]||'#8A8AA3');
+    const lp=polar(cx,cy,R+16,pt.angle);
+    svg+='<circle cx="'+pt.p.x+'" cy="'+pt.p.y+'" r="9" fill="'+color+'" stroke="#fff" stroke-width="1.5"><title>'+escapeHtml(pt.ev.texto)+'</title></circle>';
+    svg+='<text x="'+lp.x+'" y="'+lp.y+'" font-size="8.5" fill="#23233D" text-anchor="middle">'+escapeHtml(pt.ev.texto.slice(0,14))+'</text>';
+  });
+  if(n===0){ svg+='<text x="'+cx+'" y="'+(cy+55)+'" font-size="11" fill="#6B6B85" text-anchor="middle">Adicione um acontecimento para iluminar a teia</text>'; }
+  document.getElementById('teiaSvg').innerHTML=svg;
+}
+function renderTeiaList(){
+  const data=loadTeia();
+  const box=document.getElementById('teiaList');
+  if(data.length===0){ box.innerHTML='<p class="muted">Nenhum acontecimento mapeado ainda.</p>'; return; }
+  box.innerHTML='<h3 style="margin-top:0">Acontecimentos mapeados</h3>'+data.map(ev=>{
+    const color=ev.iluminado?'#C9A24B':(TEIA_TIPO_COLOR[ev.tipo]||'#8A8AA3');
+    return '<div class="nlist-row"><span><span class="qbadge" style="background:'+color+'"></span><b>'+escapeHtml(ev.texto)+'</b>'
+      +(ev.relacionamento?' · '+escapeHtml(ev.relacionamento):'')
+      +(ev.pontaSolta?' · ponta solta: '+escapeHtml(ev.pontaSolta):'')
+      +' · '+ev.tipo+' · '+(ev.iluminado?'<b style="color:#C9A24B">iluminada</b>':'não iluminada')+'</span>'
+      +'<span><button data-action="toggleTeia" data-arg="'+ev.id+'" style="color:#2F6F6A">'+(ev.iluminado?'desmarcar':'iluminar')+'</button> '
+      +'<button data-action="removeTeia" data-arg="'+ev.id+'">remover</button></span></div>';
+  }).join('');
+}
+function renderTeiaResumo(){
+  const data=loadTeia(), total=data.length, ilum=data.filter(e=>e.iluminado).length;
+  document.getElementById('teiaResumo').textContent = total===0? '' : total+' acontecimento(s) mapeado(s) · '+ilum+' iluminado(s) · '+(total-ilum)+' aguardando ação.';
+}
+function renderTeia(){ renderTeiaSvg(); renderTeiaList(); renderTeiaResumo(); }
+function addTeiaEvent(e){
+  e.preventDefault();
+  const texto=document.getElementById('teTexto').value.trim();
+  if(!texto) return;
+  const relacionamento=document.getElementById('teRelacionamento').value.trim();
+  const pontaSolta=document.getElementById('tePontaSolta').value.trim();
+  const tipo=document.getElementById('teTipo').value;
+  const iluminado=document.getElementById('teIluminado').checked;
+  const data=loadTeia();
+  data.push({id:Date.now()+'_'+Math.random().toString(36).slice(2,7), texto, relacionamento, pontaSolta, tipo, iluminado});
+  saveTeia(data);
+  document.getElementById('teTexto').value='';
+  document.getElementById('teRelacionamento').value='';
+  document.getElementById('tePontaSolta').value='';
+  document.getElementById('teIluminado').checked=false;
+  renderTeia(); renderDashSummary();
+}
+function removeTeia(id){ saveTeia(loadTeia().filter(e=>e.id!==id)); renderTeia(); renderDashSummary(); }
+function toggleTeia(id){
+  const data=loadTeia(); const ev=data.find(e=>e.id===id);
+  if(ev) ev.iluminado=!ev.iluminado;
+  saveTeia(data); renderTeia(); renderDashSummary();
+}
+
+/* ============================================================
+   TERMÔMETRO DA VONTADE (Órbita da Vontade)
+============================================================ */
+const OBSTACULOS=[['medo','Medo'],['culpa','Culpa'],['inseguranca','Insegurança'],['procrastinacao','Procrastinação'],['desanimo','Desânimo']];
+function renderObstaculosForm(){
+  const box=document.getElementById('tmObstaculos');
+  box.innerHTML=OBSTACULOS.map(o=>'<div class="obst-row"><span class="lbl">'+o[1]+'</span><input type="range" min="0" max="10" value="3" id="tmObs_'+o[0]+'"><span class="val" id="tmObsVal_'+o[0]+'">3</span></div>').join('');
+  OBSTACULOS.forEach(o=>{
+    document.getElementById('tmObs_'+o[0]).addEventListener('input',function(){ document.getElementById('tmObsVal_'+o[0]).textContent=this.value; });
+  });
+}
+function loadTermoHist(){ return JSON.parse(localStorage.getItem('ad_termo_hist')||'[]'); }
+function saveTermoHist(h){ localStorage.setItem('ad_termo_hist', JSON.stringify(h.slice(0,20))); }
+function renderTermoHist(){
+  const hist=loadTermoHist();
+  const box=document.getElementById('termoHist');
+  if(hist.length===0){ box.innerHTML=''; return; }
+  box.innerHTML='<h3 style="margin-top:0">Histórico de registros</h3>'+hist.map(h=>
+    '<div class="nlist-row"><span><b>'+escapeHtml(h.objetivo)+'</b> · '+h.data+' · '+(h.busca==='opcao'?'Busca por Opção':'Busca por Confirmação')+' · Vontade '+h.vontade+' vs Obstáculos '+h.mediaObst+'</span>'
+    +'<button data-action="removeTermo" data-arg="'+h.id+'">remover</button></div>'
+  ).join('');
+}
+function removeTermo(id){ saveTermoHist(loadTermoHist().filter(h=>h.id!==id)); renderTermoHist(); }
+function computeTermometro(e){
+  e.preventDefault();
+  const objetivo=document.getElementById('tmObjetivo').value.trim();
+  if(!objetivo) return;
+  const busca=document.getElementById('tmBusca').value;
+  const vontade=Number(document.getElementById('tmVontade').value);
+  const somaObst=OBSTACULOS.reduce((a,o)=>a+Number(document.getElementById('tmObs_'+o[0]).value),0);
+  const mediaObst=somaObst/OBSTACULOS.length;
+  let cls,msg;
+  if(busca==='confirmacao'){
+    cls='bad';
+    msg='Você está em <b>Busca por Confirmação</b> — validando um registro/padrão do passado. Isso tende à Estagnação, independente do tamanho da sua vontade. Volte à "Busca por Opção": explore um caminho novo antes de agir.';
+  } else if(vontade>mediaObst+0.5){
+    cls='good';
+    msg='<b>Vontade Genuína supera os obstáculos</b> — caminho ativo. Ilumine a teia: transforme isso em uma ação concreta hoje, com prazo.';
+  } else if(Math.abs(vontade-mediaObst)<=0.5){
+    cls='mid';
+    msg='<b>Equilíbrio tenso</b> — um pequeno empurrão já pode virar o jogo. Reduza um obstáculo (rode o protocolo correspondente) ou fortaleça o motivo por trás da sua vontade.';
+  } else {
+    cls='bad';
+    msg='<b>Os obstáculos superam a Vontade Genuína</b> — por isso a decisão ainda não virou ação. Trabalhe os protocolos (Medo, Culpa, Dependência) antes de cobrar ação de si mesmo.';
+  }
+  const pctV=vontade*10, pctO=mediaObst*10;
+  document.getElementById('termoResultado').innerHTML=
+    '<div class="vw-bar"><div style="width:'+pctV+'%;background:#C9A24B">Vontade '+vontade+'</div><div style="width:'+(100-pctV)+'%;background:#EDEDF2"></div></div>'
+    +'<div class="vw-bar" style="margin-top:6px"><div style="width:'+pctO+'%;background:#C0392B">Obstáculos (média) '+mediaObst.toFixed(1)+'</div><div style="width:'+(100-pctO)+'%;background:#EDEDF2"></div></div>'
+    +'<div class="verdict '+cls+'">'+msg+'</div>';
+  const entry={id:Date.now()+'_'+Math.random().toString(36).slice(2,7), data:new Date().toLocaleDateString('pt-BR'), objetivo, busca, vontade, mediaObst:Number(mediaObst.toFixed(1)), cls};
+  const hist=loadTermoHist(); hist.unshift(entry); saveTermoHist(hist);
+  renderTermoHist();
+  localStorage.setItem('ad_termo_last', JSON.stringify(entry));
+  renderDashSummary();
+}
+
+/* ============================================================
+   PLANO DE AÇÃO PDA (MARCA PASSOS)
+============================================================ */
+function loadPda(){ return JSON.parse(localStorage.getItem('ad_pda')||'[]'); }
+function savePda(d){ localStorage.setItem('ad_pda', JSON.stringify(d)); }
+function addPda(e){
+  e.preventDefault();
+  const padrao=document.getElementById('pdaPadrao').value.trim();
+  if(!padrao) return;
+  const entry={
+    id:Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    padrao,
+    tipo:document.getElementById('pdaTipo').value,
+    pilar:document.getElementById('pdaPilar').value,
+    perceber:document.getElementById('pdaPerceber').value.trim(),
+    decidir:document.getElementById('pdaDecidir').value.trim(),
+    agir:document.getElementById('pdaAgir').value.trim(),
+    prazo:document.getElementById('pdaPrazo').value,
+    status:'Não iniciado',
+    degrau:document.getElementById('pdaDegrau').value,
+    guardiao:document.getElementById('pdaGuardiao').value.trim()
+  };
+  const d=loadPda(); d.push(entry); savePda(d);
+  document.getElementById('pdaForm').reset();
+  renderPda(); renderDashSummary(); renderGuardioesList();
+}
+function updatePdaStatus(id,status){
+  const d=loadPda(); const it=d.find(x=>x.id===id);
+  if(it) it.status=status;
+  savePda(d); renderPda(); renderDashSummary();
+}
+function removePda(id){ savePda(loadPda().filter(x=>x.id!==id)); renderPda(); renderDashSummary(); }
+function renderPdaList(){
+  const d=loadPda();
+  const box=document.getElementById('pdaList');
+  if(d.length===0){ box.innerHTML='<p class="muted">Nenhum padrão no Plano de Ação ainda.</p>'; return; }
+  const today=new Date().toISOString().slice(0,10);
+  const statuses=['Não iniciado','Em andamento','Concluído','Travado'];
+  box.innerHTML='<h3 style="margin-top:0">Padrões no plano</h3>'+d.map(it=>{
+    const overdue = it.prazo && it.prazo<today && it.status!=='Concluído';
+    return '<div class="nlist-row" style="flex-direction:column;align-items:stretch;gap:4px">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>'+escapeHtml(it.padrao)+'</b>'
+      +'<span><select data-pda-status="'+it.id+'" style="font-size:12px;padding:2px 4px">'
+      +statuses.map(s=>'<option'+(s===it.status?' selected':'')+'>'+s+'</option>').join('')
+      +'</select> <button data-action="removePda" data-arg="'+it.id+'">remover</button></span></div>'
+      +'<span class="muted" style="font-size:12.5px">'+it.tipo+' · '+it.pilar+' · '+it.degrau
+      +(it.prazo?' · prazo: '+it.prazo+(overdue?' <b style="color:#C0392B">(atrasado)</b>':''):'')
+      +(it.guardiao?' · guardião: '+escapeHtml(it.guardiao):'')+'</span>'
+      +((it.perceber||it.decidir||it.agir)? '<span class="muted" style="font-size:12.5px">'
+        +(it.perceber?'<b>Perceber:</b> '+escapeHtml(it.perceber)+'  ':'')
+        +(it.decidir?'<b>Decidir:</b> '+escapeHtml(it.decidir)+'  ':'')
+        +(it.agir?'<b>Agir:</b> '+escapeHtml(it.agir):'')+'</span>' : '')
+      +'</div>';
+  }).join('');
+}
+function renderPdaResumo(){
+  const d=loadPda();
+  const box=document.getElementById('pdaResumo');
+  if(d.length===0){ box.innerHTML='<p class="muted">Nenhum padrão registrado ainda.</p>'; return; }
+  const total=d.length;
+  const concluido=d.filter(x=>x.status==='Concluído').length;
+  const andamento=d.filter(x=>x.status==='Em andamento').length;
+  const travado=d.filter(x=>x.status==='Travado').length;
+  const naoIniciado=d.filter(x=>x.status==='Não iniciado').length;
+  const today=new Date().toISOString().slice(0,10);
+  const atrasados=d.filter(x=>x.prazo && x.prazo<today && x.status!=='Concluído').length;
+  const pct=Math.round(concluido/total*100);
+  box.innerHTML='<div class="bar"><div style="width:'+pct+'%"></div></div>'
+    +'<p class="muted">'+pct+'% concluído · '+concluido+'/'+total+' · Em andamento '+andamento+' · Travados '+travado+' · Não iniciados '+naoIniciado
+    +(atrasados?' · <b style="color:#C0392B">'+atrasados+' atrasado(s)</b>':'')+'</p>';
+}
+function renderPda(){ renderPdaResumo(); renderPdaList(); }
+
+/* ============================================================
+   FILTRO PPP
+============================================================ */
+function loadPPP(){ return JSON.parse(localStorage.getItem('ad_ppp')||'[]'); }
+function savePPPData(d){ localStorage.setItem('ad_ppp', JSON.stringify(d)); }
+function addPPP(e){
+  e.preventDefault();
+  const problema=document.getElementById('pppProblema').value.trim();
+  if(!problema) return;
+  const entry={
+    id:Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    problema,
+    precisa:document.getElementById('pppPrecisa').value.trim(),
+    prefere:document.getElementById('pppPrefere').value.trim(),
+    permite:document.getElementById('pppPermite').value.trim(),
+    gatilho:document.getElementById('pppGatilho').value
+  };
+  const d=loadPPP(); d.push(entry); savePPPData(d);
+  document.getElementById('pppForm').reset();
+  renderPPP(); renderDashSummary();
+}
+function removePPP(id){ savePPPData(loadPPP().filter(x=>x.id!==id)); renderPPP(); renderDashSummary(); }
+function renderPPP(){
+  const d=loadPPP();
+  const box=document.getElementById('pppList');
+  if(d.length===0){ box.innerHTML='<p class="muted">Nenhum problema analisado ainda.</p>'; return; }
+  box.innerHTML='<h3 style="margin-top:0">Problemas analisados</h3>'+d.map(it=>
+    '<div class="nlist-row" style="flex-direction:column;align-items:stretch;gap:4px">'
+    +'<div style="display:flex;justify-content:space-between"><b>'+escapeHtml(it.problema)+'</b>'
+    +'<button data-action="removePPP" data-arg="'+it.id+'">remover</button></div>'
+    +'<span class="muted" style="font-size:12.5px">'
+    +(it.precisa?'<b>Precisa:</b> '+escapeHtml(it.precisa)+'  ':'')
+    +(it.prefere?'<b>Prefere:</b> '+escapeHtml(it.prefere)+'  ':'')
+    +(it.permite?'<b>Permite:</b> '+escapeHtml(it.permite)+'  ':'')
+    +'· Gatilho: '+it.gatilho+'</span></div>'
+  ).join('');
+}
+
+/* ============================================================
+   CONSTRUINDO O NÃO (Dependência / Proteção Emocional)
+============================================================ */
+function loadNaoTool(){ return JSON.parse(localStorage.getItem('ad_naotool')||'[]'); }
+function saveNaoTool(d){ localStorage.setItem('ad_naotool', JSON.stringify(d)); }
+function populateNaoDatalist(){
+  const ni=loadNucleo();
+  const names=[...ni.interno.map(p=>p.nome), ...ni.externo.map(p=>p.nome)];
+  document.getElementById('naoPessoasList').innerHTML=[...new Set(names)].map(n=>'<option value="'+escapeHtml(n)+'">').join('');
+}
+function renderGuardioesList(){
+  const ni=loadNucleo();
+  const names=new Set([...ni.interno.map(p=>p.nome), ...ni.externo.map(p=>p.nome)]);
+  loadPda().forEach(x=>{ if(x.guardiao) names.add(x.guardiao); });
+  loadNaoTool().forEach(x=>{ if(x.guardiao) names.add(x.guardiao); });
+  document.getElementById('guardioesList').innerHTML=[...names].map(n=>'<option value="'+escapeHtml(n)+'">').join('');
+}
+function addNaoTool(e){
+  e.preventDefault();
+  const pessoa=document.getElementById('naoPessoa').value.trim();
+  if(!pessoa) return;
+  const entry={
+    id:Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    pessoa,
+    tipo:document.getElementById('naoTipo').value,
+    limite:document.getElementById('naoLimite').value.trim(),
+    acordo:document.getElementById('naoAcordo').value.trim(),
+    reparacao:document.getElementById('naoReparacao').value.trim(),
+    prazo:document.getElementById('naoPrazo').value,
+    guardiao:document.getElementById('naoGuardiao').value.trim(),
+    concluido:false
+  };
+  const d=loadNaoTool(); d.push(entry); saveNaoTool(d);
+  document.getElementById('naoForm').reset();
+  renderNaoTool(); renderDashSummary(); renderGuardioesList();
+}
+function toggleNaoTool(id){
+  const d=loadNaoTool(); const it=d.find(x=>x.id===id);
+  if(it) it.concluido=!it.concluido;
+  saveNaoTool(d); renderNaoTool(); renderDashSummary();
+}
+function removeNaoTool(id){ saveNaoTool(loadNaoTool().filter(x=>x.id!==id)); renderNaoTool(); renderDashSummary(); }
+function renderNaoTool(){
+  populateNaoDatalist();
+  const d=loadNaoTool();
+  const box=document.getElementById('naoList');
+  if(d.length===0){ box.innerHTML='<p class="muted">Nenhum limite construído ainda.</p>'; return; }
+  box.innerHTML='<h3 style="margin-top:0">Limites em construção</h3>'+d.map(it=>
+    '<div class="nlist-row" style="flex-direction:column;align-items:stretch;gap:4px">'
+    +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap"><b>'+escapeHtml(it.pessoa)+'</b> ('+it.tipo+')'
+    +'<span><button data-action="toggleNaoTool" data-arg="'+it.id+'" style="color:#2F6F6A">'+(it.concluido?'reabrir':'concluir')+'</button> '
+    +'<button data-action="removeNaoTool" data-arg="'+it.id+'">remover</button></span></div>'
+    +'<span class="muted" style="font-size:12.5px">'
+    +(it.limite?'<b>Limite:</b> '+escapeHtml(it.limite)+'  ':'')
+    +(it.acordo?'<b>Acordo:</b> '+escapeHtml(it.acordo)+'  ':'')
+    +(it.reparacao?'<b>Reparação:</b> '+escapeHtml(it.reparacao)+'  ':'')
+    +(it.prazo?'· prazo '+it.prazo+' ':'')
+    +(it.guardiao?'· guardião: '+escapeHtml(it.guardiao):'')
+    +(it.concluido?' · <b style="color:#2E7D32">concluído</b>':'')
+    +'</span></div>'
+  ).join('');
+}
+function renderAcao(){ renderPda(); renderPPP(); renderNaoTool(); renderGuardioesList(); }
+
+/* ============================================================
+   PLANO PERFEITO
+============================================================ */
+function loadSonho(){ return localStorage.getItem('ad_sonho')||''; }
+function renderSonho(){ document.getElementById('ppSonho').value=loadSonho(); }
+function saveSonho(){
+  localStorage.setItem('ad_sonho', document.getElementById('ppSonho').value.trim());
+  const st=document.getElementById('ppSonhoStatus'); st.textContent='Salvo ✓';
+  setTimeout(()=>{st.textContent='';},2000);
+  renderDashSummary();
+}
+const PILARES=['Financeiro','Saúde','Relacionamento'];
+function pilarId(p){ return p.replace(/[^a-zA-Z]/g,''); }
+function loadPilares(){
+  return JSON.parse(localStorage.getItem('ad_pilares')||'null') || {
+    Financeiro:{meta:'',comoMedir:'',prazo:'',fichas:0},
+    'Saúde':{meta:'',comoMedir:'',prazo:'',fichas:0},
+    Relacionamento:{meta:'',comoMedir:'',prazo:'',fichas:0}
+  };
+}
+function renderPilaresForm(){
+  const data=loadPilares();
+  document.getElementById('ppPilares').innerHTML=PILARES.map(p=>{
+    const d=data[p]||{meta:'',comoMedir:'',prazo:'',fichas:0};
+    const id=pilarId(p);
+    return '<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px">'
+      +'<h3 style="margin-top:0">'+p+'</h3>'
+      +'<label class="field">Meta</label><input type="text" id="ppMeta_'+id+'" value="'+escapeHtml(d.meta)+'">'
+      +'<label class="field">Como vai medir</label><input type="text" id="ppMedir_'+id+'" value="'+escapeHtml(d.comoMedir)+'">'
+      +'<div class="grid g2"><div><label class="field">Prazo</label><input type="date" id="ppPrazo_'+id+'" value="'+d.prazo+'"></div>'
+      +'<div><label class="field">Fichas de foco (0-5)</label><input type="number" min="0" max="5" id="ppFichas_'+id+'" value="'+d.fichas+'"></div></div>'
+      +'</div>';
+  }).join('');
+  PILARES.forEach(p=>document.getElementById('ppFichas_'+pilarId(p)).addEventListener('input', updateFichasTotal));
+  updateFichasTotal();
+}
+function updateFichasTotal(){
+  let total=0;
+  PILARES.forEach(p=>{ total+=Number(document.getElementById('ppFichas_'+pilarId(p)).value||0); });
+  const el=document.getElementById('ppFichasTotal');
+  el.textContent='Total de fichas usadas: '+total+' / 5';
+  el.style.color = total===5 ? '#2E7D32' : '#C0392B';
+}
+function savePilares(){
+  const data={};
+  PILARES.forEach(p=>{
+    const id=pilarId(p);
+    data[p]={
+      meta:document.getElementById('ppMeta_'+id).value.trim(),
+      comoMedir:document.getElementById('ppMedir_'+id).value.trim(),
+      prazo:document.getElementById('ppPrazo_'+id).value,
+      fichas:Number(document.getElementById('ppFichas_'+id).value||0)
+    };
+  });
+  localStorage.setItem('ad_pilares', JSON.stringify(data));
+  renderDashSummary();
+}
+const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function loadMeses(){
+  return JSON.parse(localStorage.getItem('ad_meses')||'null') || MESES.map(m=>({mes:m,planejado:'',realizado:'',status:''}));
+}
+function renderMesesForm(){
+  const data=loadMeses();
+  let html='<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:520px"><tr style="background:var(--bg)">'
+    +'<th style="text-align:left;padding:6px">Mês</th><th style="text-align:left;padding:6px">Planejado</th><th style="text-align:left;padding:6px">Realizado</th><th style="text-align:left;padding:6px">Status</th></tr>';
+  data.forEach((row,i)=>{
+    html+='<tr style="border-bottom:1px solid var(--line)"><td style="padding:6px;font-weight:bold;white-space:nowrap">'+row.mes+'</td>'
+      +'<td style="padding:4px"><input type="text" id="ppMesPlan_'+i+'" value="'+escapeHtml(row.planejado)+'" style="width:100%;padding:6px"></td>'
+      +'<td style="padding:4px"><input type="text" id="ppMesReal_'+i+'" value="'+escapeHtml(row.realizado)+'" style="width:100%;padding:6px"></td>'
+      +'<td style="padding:4px"><select id="ppMesStatus_'+i+'" style="padding:6px">'
+      +['','Cumprido','Parcial','Não cumprido'].map(s=>'<option value="'+s+'"'+(s===row.status?' selected':'')+'>'+(s||'—')+'</option>').join('')
+      +'</select></td></tr>';
+  });
+  html+='</table>';
+  document.getElementById('ppMeses').innerHTML=html;
+}
+function saveMeses(){
+  const data=MESES.map((m,i)=>({
+    mes:m,
+    planejado:document.getElementById('ppMesPlan_'+i).value.trim(),
+    realizado:document.getElementById('ppMesReal_'+i).value.trim(),
+    status:document.getElementById('ppMesStatus_'+i).value
+  }));
+  localStorage.setItem('ad_meses', JSON.stringify(data));
+  renderDashSummary();
+}
+function loadLicoes(){
+  return JSON.parse(localStorage.getItem('ad_licoes')||'null') || ['T1','T2','T3','T4'].map(t=>({tri:t,aproximou:'',repetir:'',afastou:'',eliminar:''}));
+}
+function renderLicoesForm(){
+  const data=loadLicoes();
+  document.getElementById('ppLicoes').innerHTML=data.map((row,i)=>
+    '<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px"><h3 style="margin-top:0">'+row.tri+'</h3>'
+    +'<label class="field">O que aproximou do sonho (fiz de importante)</label><input type="text" id="ppLicAprox_'+i+'" value="'+escapeHtml(row.aproximou)+'">'
+    +'<label class="field">Comportamento a repetir</label><input type="text" id="ppLicRepetir_'+i+'" value="'+escapeHtml(row.repetir)+'">'
+    +'<label class="field">O que afastou do sonho (não deveria ter feito)</label><input type="text" id="ppLicAfasta_'+i+'" value="'+escapeHtml(row.afastou)+'">'
+    +'<label class="field">Comportamento a eliminar</label><input type="text" id="ppLicElim_'+i+'" value="'+escapeHtml(row.eliminar)+'">'
+    +'</div>'
+  ).join('');
+}
+function saveLicoes(){
+  const data=['T1','T2','T3','T4'].map((t,i)=>({
+    tri:t,
+    aproximou:document.getElementById('ppLicAprox_'+i).value.trim(),
+    repetir:document.getElementById('ppLicRepetir_'+i).value.trim(),
+    afastou:document.getElementById('ppLicAfasta_'+i).value.trim(),
+    eliminar:document.getElementById('ppLicElim_'+i).value.trim()
+  }));
+  localStorage.setItem('ad_licoes', JSON.stringify(data));
+  renderDashSummary();
+}
+function loadCarta(){ return JSON.parse(localStorage.getItem('ad_carta')||'null'); }
+function renderCartaAtual(){
+  const c=loadCarta();
+  document.getElementById('ppCartaAtual').innerHTML = c ? '<div class="note"><b>Assinado por '+escapeHtml(c.nome)+'</b> em '+c.data+':<br>"'+escapeHtml(c.texto)+'"</div>' : '';
+}
+function saveCarta(){
+  const texto=document.getElementById('ppCartaTexto').value.trim();
+  const nome=document.getElementById('ppCartaNome').value.trim();
+  if(!texto || !nome) return;
+  localStorage.setItem('ad_carta', JSON.stringify({texto,nome,data:new Date().toLocaleDateString('pt-BR')}));
+  renderCartaAtual(); renderDashSummary();
+}
+function renderPlanoPerfeito(){
+  renderSonho(); renderPilaresForm(); renderMesesForm(); renderLicoesForm(); renderCartaAtual();
+}
+
+/* ============================================================
+   CONFIG / CHAVES
+============================================================ */
+function loadCfg(){
+  const c=JSON.parse(localStorage.getItem('ad_cfg')||'{}');
+  document.getElementById('provider').value=c.provider||'claude';
+  document.getElementById('claudeKey').value=c.claudeKey||'';
+  document.getElementById('claudeModel').value=c.claudeModel||'claude-opus-4-8';
+  document.getElementById('openaiKey').value=c.openaiKey||'';
+  document.getElementById('openaiModel').value=c.openaiModel||'gpt-4o';
+  toggleProvider();
+}
+function saveCfg(){
+  const c={
+    provider:document.getElementById('provider').value,
+    claudeKey:document.getElementById('claudeKey').value.trim(),
+    claudeModel:document.getElementById('claudeModel').value,
+    openaiKey:document.getElementById('openaiKey').value.trim(),
+    openaiModel:document.getElementById('openaiModel').value.trim()||'gpt-4o'
+  };
+  localStorage.setItem('ad_cfg',JSON.stringify(c));
+  toggleProvider();
+}
+function toggleProvider(){
+  const p=document.getElementById('provider').value;
+  document.getElementById('claudeCfg').style.display=p==='claude'?'block':'none';
+  document.getElementById('openaiCfg').style.display=p==='openai'?'block':'none';
+}
+const ALL_DATA_KEYS=['ad_diag','ad_profile','ad_ceno','ad_nucleo','ad_teia','ad_termo_hist','ad_termo_last',
+  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat'];
+function wipeAll(){
+  if(confirm('Apagar TODOS os dados salvos neste dispositivo (diagnóstico, cenários, núcleo emocional, teia, plano de ação, plano perfeito, chat e chave de API)? Esta ação não pode ser desfeita.')){
+    ALL_DATA_KEYS.concat(['ad_cfg']).forEach(k=>localStorage.removeItem(k));
+    alert('Dados apagados. A página será recarregada.');
+    location.reload();
+  }
+}
+function exportarDados(){
+  const out={};
+  ALL_DATA_KEYS.forEach(k=>{ const v=localStorage.getItem(k); if(v!==null) out[k]=v; });
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='aliancadivergente_backup_'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function triggerImport(){ document.getElementById('importFile').click(); }
+function importarDadosArquivo(){
+  const input=document.getElementById('importFile');
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    let data;
+    try{ data=JSON.parse(e.target.result); }
+    catch(err){ alert('Arquivo inválido. Verifique se é um backup gerado por este app.'); input.value=''; return; }
+    if(!confirm('Isso vai substituir os dados atuais deste dispositivo pelos dados do arquivo importado. Continuar?')){ input.value=''; return; }
+    ALL_DATA_KEYS.forEach(k=>{ if(data[k]!==undefined) localStorage.setItem(k,data[k]); });
+    alert('Dados importados com sucesso! A página será recarregada.');
+    location.reload();
+  };
+  reader.readAsText(file);
+}
+
+/* ============================================================
+   COACH IA
+============================================================ */
+const SYSTEM_PROMPT = `Você é um Coach Aliado da Aliança Divergente, metodologia de desenvolvimento pessoal de Elton Euler. Fale português do Brasil, tom firme, acolhedor e direto, como um Aliado experiente — não é terapia clínica nem aconselhamento médico.
+
+Domine e aplique estes conceitos ao orientar:
+- Teia dos Acontecimentos: o acaso é inexistente; todo acontecimento se liga a um relacionamento e a um padrão. Ilumine a teia com consciência e AÇÃO.
+- Método PDA / Marca Passos: Perceber (o padrão) → Decidir (conscientemente, inclusive desistir do velho) → Agir (ação concreta com prazo). "Percepção sem ação é pura ilusão."
+- Responsabilidade Extrema: sair do vitimismo (culpa/passado) para o protagonismo (escolhas presentes). "Se chegou para você, pega que é seu."
+- Escada da Postura: Reclamar/Justificar → Questionar → Propor/Aplicar.
+- Ciclo da Pré-Queda: Desejo → Dúvida → Decisão → Desistência (do padrão antigo). Fracione ações uma por semana.
+- Filtro PPP: Precisa (ver), Prefere (ganho oculto: punir/poupar/unir/afastar), Permite (medida exata).
+- Vontade Genuína > soma dos obstáculos (medo, culpa, insegurança, procrastinação, desânimo).
+- Protocolo do Medo: entender origem, avaliar impacto, desmentir a crença (0-10), superar com PDA Memorável; medíocre foge, memorável encara.
+- Núcleo Emocional e 4 padrões controladores: Vítima Natural, Vítima Intencional, Vingador, Narcisista.
+- Dependência Emocional Ativa (você interfere) e Passiva (interferem em você); Construir o Não: limite, acordo, retratação/reparação, guardião. Proteção Emocional contra recaídas e insistências.
+- Combate à Culpa em 4 tipos: Real (retratar/reparar), Ilegítima (comunicar limite), Dirigida (perdoar/liberar), Autoculpa (PDA de autoperdão). "A culpa está na utilidade que você dá ao que aconteceu."
+- A sua paz vai custar a frustração de alguém — e tudo bem. Permissão interna, não aprovação externa.
+
+Estilo: faça 1-2 perguntas para entender antes de aconselhar quando fizer sentido; conecte a situação a um conceito nomeado; ofereça um próximo passo concreto no formato Perceber/Decidir/Agir; seja breve (respostas de coach, não textões). Quando a pessoa trouxer risco grave à vida ou crise séria, oriente com cuidado a procurar apoio profissional/CVV 188. Termine frequentemente reforçando: "Aqui você pode mais."`;
+
+let chat=JSON.parse(localStorage.getItem('ad_chat')||'[]');
+function renderChat(){
+  const log=document.getElementById('chatlog'); log.innerHTML='';
+  if(chat.length===0){
+    log.innerHTML='<div class="msg sys">Bem-vindo, Aliado. Descreva uma situação, um padrão que se repete ou uma decisão que você está adiando. Se já fez o diagnóstico, posso partir dele.</div>';
+  }
+  chat.forEach(m=>{
+    const d=document.createElement('div'); d.className='msg '+(m.role==='user'?'user':'bot'); d.textContent=m.content; log.appendChild(d);
+  });
+  log.scrollTop=log.scrollHeight;
+}
+function newChat(){chat=[];localStorage.setItem('ad_chat','[]');renderChat();}
+function chatKey(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();document.getElementById('chatform').requestSubmit();} }
+function refreshCoachStatus(){
+  const c=JSON.parse(localStorage.getItem('ad_cfg')||'{}');
+  const el=document.getElementById('coachStatus');
+  const prov=c.provider||'claude';
+  const key=prov==='claude'?c.claudeKey:c.openaiKey;
+  if(!key){
+    el.innerHTML='<div class="warn">Nenhuma chave de IA configurada. O Coach ao vivo precisa de uma chave. <a href="#" data-action="go" data-arg="cfg">Configurar agora</a> — ou continue explorando o Diagnóstico e os Cenários, que funcionam offline.</div>';
+  } else {
+    const model=prov==='claude'?(c.claudeModel||'claude-opus-4-8'):(c.openaiModel||'gpt-4o');
+    el.innerHTML='<p class="muted">Conectado a <b>'+(prov==='claude'?'Claude':'OpenAI')+'</b> · modelo <span class="tag">'+model+'</span></p>';
+  }
+}
+async function sendChat(e){
+  e.preventDefault();
+  const inp=document.getElementById('chatinput');
+  const text=inp.value.trim(); if(!text) return false;
+  const c=JSON.parse(localStorage.getItem('ad_cfg')||'{}');
+  const prov=c.provider||'claude';
+  const key=prov==='claude'?c.claudeKey:c.openaiKey;
+  if(!key){ refreshCoachStatus(); go('coach'); return false; }
+  chat.push({role:'user',content:text}); inp.value=''; inp.style.height='auto';
+  localStorage.setItem('ad_chat',JSON.stringify(chat)); renderChat();
+  const log=document.getElementById('chatlog');
+  const typing=document.createElement('div'); typing.className='typing'; typing.id='typing';
+  typing.innerHTML='Coach digitando <span class="dot">•</span><span class="dot">•</span><span class="dot">•</span>';
+  log.appendChild(typing); log.scrollTop=log.scrollHeight;
+  try{
+    let reply;
+    if(prov==='claude') reply=await callClaude(c,key);
+    else reply=await callOpenAI(c,key);
+    chat.push({role:'assistant',content:reply});
+  }catch(err){
+    chat.push({role:'assistant',content:'⚠️ Erro ao contatar a IA: '+err.message+'\n\nVerifique sua chave e o modelo em Config. Cheque também se a chave tem créditos disponíveis.'});
+  }
+  document.getElementById('typing')?.remove();
+  localStorage.setItem('ad_chat',JSON.stringify(chat)); renderChat();
+  return false;
+}
+function profileContext(){
+  const p=JSON.parse(localStorage.getItem('ad_profile')||'null');
+  if(!p) return '';
+  return '\n\n[Contexto do diagnóstico do usuário: arquétipo '+p.arq+'; medo '+p.medo+'%; culpa '+p.culpa+'; '+p.dep+'; postura '+p.postura+'. Use isso para personalizar, mas confirme com ele.]';
+}
+async function callClaude(c,key){
+  const msgs=chat.map(m=>({role:m.role,content:m.content}));
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:c.claudeModel||'claude-opus-4-8',max_tokens:900,system:SYSTEM_PROMPT+profileContext(),messages:msgs})
+  });
+  if(!res.ok){ const t=await res.text(); throw new Error('HTTP '+res.status+' '+t.slice(0,200)); }
+  const data=await res.json();
+  return (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim()||'(sem resposta)';
+}
+async function callOpenAI(c,key){
+  const msgs=[{role:'system',content:SYSTEM_PROMPT+profileContext()}].concat(chat.map(m=>({role:m.role,content:m.content})));
+  const res=await fetch('https://api.openai.com/v1/chat/completions',{
+    method:'POST',
+    headers:{'content-type':'application/json','authorization':'Bearer '+key},
+    body:JSON.stringify({model:c.openaiModel||'gpt-4o',max_tokens:900,messages:msgs})
+  });
+  if(!res.ok){ const t=await res.text(); throw new Error('HTTP '+res.status+' '+t.slice(0,200)); }
+  const data=await res.json();
+  return (data.choices&&data.choices[0]&&data.choices[0].message.content||'(sem resposta)').trim();
+}
+/* ============================================================
+   WIRING — delegação de eventos (funciona em qualquer navegador/painel,
+   sem depender de handlers onclick embutidos no HTML)
+============================================================ */
+var ACTIONS={ go:function(a){go(a)}, computeDiag:computeDiag, resetDiag:resetDiag,
+  sendDiagToCoach:sendDiagToCoach, print:function(){window.print()}, nextCen:nextCen,
+  restartCen:restartCen, newChat:newChat, wipeAll:wipeAll,
+  switchNucleo:switchNucleo, removeNucleo:removeNucleo, editNucleoStart:editNucleoStart, cancelNucleoEdit:cancelNucleoEdit, saveNucleoEdit:saveNucleoEdit,
+  toggleTeia:toggleTeia, removeTeia:removeTeia, removeTermo:removeTermo,
+  removePda:removePda, removePPP:removePPP, toggleNaoTool:toggleNaoTool, removeNaoTool:removeNaoTool,
+  exportarDados:exportarDados, triggerImport:triggerImport };
+document.addEventListener('click',function(e){
+  var el=e.target.closest('[data-action]');
+  if(!el) return;
+  var fn=ACTIONS[el.dataset.action];
+  if(fn){ e.preventDefault(); fn(el.dataset.arg); }
+});
+document.addEventListener('change',function(e){
+  var el=e.target.closest('[data-pda-status]');
+  if(el){ updatePdaStatus(el.dataset.pdaStatus, el.value); }
+});
+document.getElementById('importFile').addEventListener('change',importarDadosArquivo);
+// config: salvar ao alterar qualquer campo
+['provider','claudeKey','claudeModel','openaiKey','openaiModel'].forEach(function(id){
+  var el=document.getElementById(id);
+  if(el){ el.addEventListener('change',saveCfg); el.addEventListener('input',saveCfg); }
+});
+// chat: enviar
+document.getElementById('chatform').addEventListener('submit',sendChat);
+var ci=document.getElementById('chatinput');
+ci.addEventListener('keydown',chatKey);
+ci.addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';});
+// núcleo emocional: slider de nível + formulário
+document.getElementById('nuNivel').addEventListener('input',function(){document.getElementById('nuNivelLabel').textContent=this.value;});
+document.getElementById('nucleoForm').addEventListener('submit',addNucleoPerson);
+// teia dos acontecimentos
+document.getElementById('teiaForm').addEventListener('submit',addTeiaEvent);
+// termômetro da vontade
+document.getElementById('tmVontade').addEventListener('input',function(){document.getElementById('tmVontadeLabel').textContent=this.value;});
+document.getElementById('termoForm').addEventListener('submit',computeTermometro);
+// plano de ação: PDA, Filtro PPP, Construindo o Não
+document.getElementById('pdaForm').addEventListener('submit',addPda);
+document.getElementById('pppForm').addEventListener('submit',addPPP);
+document.getElementById('naoForm').addEventListener('submit',addNaoTool);
+// plano perfeito: botões de salvar
+document.getElementById('ppSonhoSalvar').addEventListener('click',saveSonho);
+document.getElementById('ppPilaresSalvar').addEventListener('click',savePilares);
+document.getElementById('ppMesesSalvar').addEventListener('click',saveMeses);
+document.getElementById('ppLicoesSalvar').addEventListener('click',saveLicoes);
+document.getElementById('ppCartaSalvar').addEventListener('click',saveCarta);
+
+/* ============================================================
+   INIT
+============================================================ */
+renderDiag();
+renderCen();
+loadCfg();
+renderChat();
+refreshCoachStatus();
+switchNucleo('interno');
+renderObstaculosForm();
+renderTeia();
+renderTermoHist();
+renderAcao();
+renderPlanoPerfeito();
+</script>
+</body>
+</html>
