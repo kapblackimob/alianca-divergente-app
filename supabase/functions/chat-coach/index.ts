@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const DAILY_LIMIT = 30;
 const CLAUDE_MODEL = "claude-sonnet-5";
 const OPENAI_MODEL = "gpt-4o";
+const SETTINGS_KEY = "coach_provider";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,13 +37,20 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) return json({ error: "Sessão inválida. Faça login novamente." }, 401);
     const userId = userData.user.id;
 
-    const { messages, system, provider } = await req.json();
+    const { messages, system } = await req.json();
     if (!Array.isArray(messages) || messages.length === 0) {
       return json({ error: "Mensagem vazia." }, 400);
     }
-    const useOpenAI = provider === "openai";
 
     const admin = createClient(supabaseUrl, serviceKey);
+
+    const { data: settingsRow } = await admin
+      .from("app_settings")
+      .select("value")
+      .eq("key", SETTINGS_KEY)
+      .maybeSingle();
+    const useOpenAI = settingsRow?.value?.provider === "openai";
+
     const today = new Date().toISOString().slice(0, 10);
 
     const { data: usageRow } = await admin

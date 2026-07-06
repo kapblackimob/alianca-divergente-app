@@ -519,11 +519,13 @@
   <div class="card">
     <h3>Coach IA</h3>
     <p class="muted">O Coach IA já está pronto para uso — não é necessário configurar nenhuma chave de API. As mensagens passam por um servidor seguro mantido pelo app.</p>
-    <label class="field">Provedor de IA</label>
-    <select id="provider">
-      <option value="claude">Claude (Anthropic)</option>
-      <option value="openai">OpenAI (ChatGPT)</option>
-    </select>
+    <div id="providerAdminBlock" style="display:none">
+      <label class="field">Provedor de IA (visível só para o administrador)</label>
+      <select id="provider">
+        <option value="claude">Claude (Anthropic)</option>
+        <option value="openai">OpenAI (ChatGPT)</option>
+      </select>
+    </div>
   </div>
 
   <div class="card">
@@ -1481,22 +1483,31 @@ function renderPlanoPerfeito(){
 }
 
 /* ============================================================
-   CONFIG
+   CONFIG (provedor de IA é decisão do administrador, não do usuário)
 ============================================================ */
-function loadCfg(){
-  const c=JSON.parse(cloudLS.getItem('ad_cfg')||'{}');
-  document.getElementById('provider').value=c.provider||'claude';
+const ADMIN_EMAIL = 'katio.almeida@gmail.com';
+function isAdmin(){ return !!currentUserEmail && currentUserEmail.toLowerCase()===ADMIN_EMAIL.toLowerCase(); }
+async function loadCfg(){
+  const block=document.getElementById('providerAdminBlock');
+  if(!isAdmin()){ block.style.display='none'; return; }
+  block.style.display='block';
+  try{
+    const {data,error}=await sb.functions.invoke('admin-provider',{body:{action:'get'}});
+    if(!error && data && data.provider) document.getElementById('provider').value=data.provider;
+  }catch(err){ console.error('Falha ao carregar provedor atual:', err); }
 }
-function saveCfg(){
-  const c={ provider:document.getElementById('provider').value };
-  cloudLS.setItem('ad_cfg',JSON.stringify(c));
-  refreshCoachStatus();
+async function saveCfg(){
+  const provider=document.getElementById('provider').value;
+  try{
+    const {error}=await sb.functions.invoke('admin-provider',{body:{action:'set',provider}});
+    if(error) alert('Erro ao salvar provedor: '+error.message);
+  }catch(err){ alert('Erro ao salvar provedor: '+err.message); }
 }
 const ALL_DATA_KEYS=['ad_diag','ad_profile','ad_ceno','ad_nucleo','ad_teia','ad_termo_hist','ad_termo_last',
   'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat'];
 function wipeAll(){
   if(confirm('Apagar TODOS os dados salvos (diagnóstico, cenários, núcleo emocional, teia, plano de ação, plano perfeito e chat)? Esta ação não pode ser desfeita.')){
-    ALL_DATA_KEYS.concat(['ad_cfg']).forEach(k=>cloudLS.removeItem(k));
+    ALL_DATA_KEYS.forEach(k=>cloudLS.removeItem(k));
     alert('Dados apagados. A página será recarregada.');
     location.reload();
   }
@@ -1549,7 +1560,15 @@ Domine e aplique estes conceitos ao orientar:
 - Combate à Culpa em 4 tipos: Real (retratar/reparar), Ilegítima (comunicar limite), Dirigida (perdoar/liberar), Autoculpa (PDA de autoperdão). "A culpa está na utilidade que você dá ao que aconteceu."
 - A sua paz vai custar a frustração de alguém — e tudo bem. Permissão interna, não aprovação externa.
 
-Estilo: faça 1-2 perguntas para entender antes de aconselhar quando fizer sentido; conecte a situação a um conceito nomeado; ofereça um próximo passo concreto no formato Perceber/Decidir/Agir; seja breve (respostas de coach, não textões). Quando a pessoa trouxer risco grave à vida ou crise séria, oriente com cuidado a procurar apoio profissional/CVV 188. Termine frequentemente reforçando: "Aqui você pode mais."`;
+Estilo de conversa — isso é o mais importante, mais até que os conceitos acima:
+- Converse como numa consulta ao vivo, em rodadas curtas. NUNCA despeje vários conceitos, listas numeradas ou o protocolo inteiro de uma vez na primeira resposta.
+- Cada resposta sua deve ter no máximo 3-4 frases curtas (raramente mais que isso), como falas de voz, não um relatório escrito.
+- Faça UMA pergunta por vez e espere a resposta da pessoa antes de continuar — nunca empilhe várias perguntas numeradas de uma vez.
+- Não use listas com marcadores, numeração (1., 2., 3.) nem texto em **negrito** para estruturar a resposta — escreva em prosa corrida, como quem fala.
+- Só nomeie um conceito da metodologia (PDA, Filtro PPP, Protocolo do Medo etc.) quando fizer sentido pontualmente pra o que a pessoa acabou de contar — nunca explique o conceito inteiro de uma vez; vá revelando aos poucos, conforme a conversa avança.
+- Antes de sugerir uma ação, confirme que entendeu a situação da pessoa com suas próprias palavras, e só então avance com uma pergunta ou um pequeno passo — nunca as duas coisas juntas na mesma resposta.
+- O próximo passo prático (Perceber/Decidir/Agir) só aparece depois de pelo menos 2-3 trocas de mensagem, quando já houver contexto suficiente — não na primeira resposta.
+Quando a pessoa trouxer risco grave à vida ou crise séria, interrompa esse ritmo e oriente com cuidado a procurar apoio profissional/CVV 188. De vez em quando, não sempre, feche reforçando: "Aqui você pode mais."`;
 
 let chat=[]; // populado em runAppInit(), depois do login/hidratação da nuvem
 function renderChat(){
@@ -1565,10 +1584,8 @@ function renderChat(){
 function newChat(){chat=[];cloudLS.setItem('ad_chat','[]');renderChat();}
 function chatKey(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();document.getElementById('chatform').requestSubmit();} }
 function refreshCoachStatus(){
-  const c=JSON.parse(cloudLS.getItem('ad_cfg')||'{}');
-  const prov=c.provider||'claude';
   const el=document.getElementById('coachStatus');
-  el.innerHTML='<p class="muted">Coach IA pronto para uso · <b>'+(prov==='claude'?'Claude':'OpenAI')+'</b></p>';
+  el.innerHTML='<p class="muted">Coach IA pronto para uso.</p>';
 }
 async function sendChat(e){
   e.preventDefault();
@@ -1596,10 +1613,9 @@ function profileContext(){
   return '\n\n[Contexto do diagnóstico do usuário: arquétipo '+p.arq+'; medo '+p.medo+'%; culpa '+p.culpa+'; '+p.dep+'; postura '+p.postura+'. Use isso para personalizar, mas confirme com ele.]';
 }
 async function callCoach(){
-  const c=JSON.parse(cloudLS.getItem('ad_cfg')||'{}');
   const msgs=chat.map(m=>({role:m.role,content:m.content}));
   const {data,error}=await sb.functions.invoke('chat-coach',{
-    body:{provider:c.provider||'claude',messages:msgs,system:SYSTEM_PROMPT+profileContext()}
+    body:{messages:msgs,system:SYSTEM_PROMPT+profileContext()}
   });
   if(error){
     let msg=error.message||'Erro ao contatar o Coach IA';
@@ -1670,7 +1686,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* Chaves que vivem na nuvem (por usuário). */
 const CLOUD_KEYS = new Set(['ad_diag','ad_profile','ad_ceno','ad_nucleo','ad_teia','ad_termo_hist','ad_termo_last',
-  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat','ad_cfg']);
+  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat']);
 
 const cloudLS = {
   _cache: {},
@@ -1813,7 +1829,9 @@ document.getElementById('newPasswordForm').addEventListener('submit', async (e)=
   }
 });
 
-async function showApp(userId){
+let currentUserEmail=null;
+async function showApp(userId, email){
+  currentUserEmail=email||null;
   document.getElementById('authGate').style.display='none';
   document.getElementById('appRoot').style.display='block';
   await cloudLS.init(sb, userId);
@@ -1838,12 +1856,12 @@ sb.auth.onAuthStateChange((event, session)=>{
     // sessão de recuperação: só libera o app depois que a pessoa definir a senha nova
     return;
   }
-  if(session && session.user){ inPasswordRecovery=false; showApp(session.user.id); }
+  if(session && session.user){ inPasswordRecovery=false; showApp(session.user.id, session.user.email); }
   else { showAuthGate(); }
 });
 (async ()=>{
   const {data:{session}} = await sb.auth.getSession();
-  if(session && session.user && !inPasswordRecovery){ showApp(session.user.id); }
+  if(session && session.user && !inPasswordRecovery){ showApp(session.user.id, session.user.email); }
   else if(!inPasswordRecovery){ showAuthGate(); }
 })();
 </script>

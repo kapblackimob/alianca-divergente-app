@@ -41,3 +41,14 @@ create table if not exists public.chat_usage (
 alter table public.chat_usage enable row level security;
 -- Nenhuma policy criada de propósito: RLS ativo bloqueia todo acesso via chave anon/pública;
 -- a Edge Function usa a service_role key, que ignora RLS.
+
+-- Configurações internas do app (ex.: qual provedor de IA o Coach usa),
+-- decididas só pelo administrador via Edge Function. Sem policy de propósito:
+-- só a service_role (usada pelas Edge Functions) acessa esta tabela.
+create table if not exists public.app_settings (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.app_settings enable row level security;
