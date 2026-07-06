@@ -102,9 +102,44 @@
   .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,60%,100%{opacity:.2}30%{opacity:1}}
   @media(max-width:600px){nav{width:100%;margin-left:0}header .logo{font-size:17px}}
+  /* auth gate */
+  #authGate{max-width:420px;margin:60px auto;padding:0 18px}
+  #authGate .card{padding:26px}
+  #authGate h1{font-size:24px;margin-top:0}
+  #authTabs{display:flex;gap:6px;margin-bottom:16px}
+  #authTabs button{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;cursor:pointer;font-size:13.5px}
+  #authTabs button.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  #authMsg{margin-top:12px;font-size:13.5px}
+  #authMsg.err{color:var(--red)}
+  #authMsg.ok{color:var(--green)}
+  #logoutBtn{margin-left:8px}
 </style>
 </head>
 <body>
+
+<!-- AUTH GATE (visível antes do login) -->
+<div id="authGate">
+  <div class="logo" style="color:#1B1B3A;text-align:center;margin-bottom:18px;font-size:22px"><b>ALIANÇA</b> DIVERGENTE</div>
+  <div class="card">
+    <div id="authTabs">
+      <button type="button" class="active" data-authtab="signin">Entrar</button>
+      <button type="button" data-authtab="signup">Criar conta</button>
+    </div>
+    <h1 id="authTitle">Entrar</h1>
+    <form id="authForm">
+      <label class="field">E-mail</label>
+      <input type="email" id="authEmail" required autocomplete="email">
+      <label class="field">Senha</label>
+      <input type="password" id="authPassword" required autocomplete="current-password" minlength="6">
+      <button class="primary" type="submit" style="margin-top:14px;width:100%" id="authSubmitBtn">Entrar</button>
+    </form>
+    <div id="authMsg"></div>
+  </div>
+  <p class="muted" style="text-align:center;margin-top:14px">Cada pessoa tem seu próprio login e seu próprio histórico — ninguém mais tem acesso aos seus dados.</p>
+</div>
+
+<!-- APP (visível só após login) -->
+<div id="appRoot" style="display:none">
 <header>
   <div class="logo"><b>ALIANÇA</b> DIVERGENTE</div>
   <nav id="nav">
@@ -116,6 +151,7 @@
     <button data-v="dash">Dashboard</button>
     <button data-v="coach">Coach IA</button>
     <button data-v="cfg">Config</button>
+    <button id="logoutBtn" title="Sair da conta">Sair ↩</button>
   </nav>
 </header>
 <main>
@@ -503,7 +539,9 @@
   Ferramenta de uso pessoal do Aliado. Complementa a Planilha, a Apresentação e o Guia em PDF.
 </footer>
 </main>
+</div><!-- /#appRoot -->
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ============================================================
    NAVEGAÇÃO
@@ -567,7 +605,7 @@ const diagItems = [
   {sec:"", t:"Tenho o hábito de transformar percepção em ação concreta com prazo (Marca Passos / PDA).", type:"lik", map:{p_pro:1}},
 ];
 
-let diagAns = JSON.parse(localStorage.getItem('ad_diag')||'{}');
+let diagAns = {}; // populado em runAppInit(), depois do login/hidratação da nuvem
 
 function renderDiag(){
   const box = document.getElementById('diagQuiz'); box.innerHTML='';
@@ -600,7 +638,7 @@ function renderDiag(){
     box.appendChild(q);
   });
 }
-function saveDiag(){localStorage.setItem('ad_diag',JSON.stringify(diagAns));}
+function saveDiag(){cloudLS.setItem('ad_diag',JSON.stringify(diagAns));}
 function resetDiag(){diagAns={};saveDiag();renderDiag();document.getElementById('diagResult').innerHTML='';}
 
 function computeDiag(){
@@ -666,11 +704,11 @@ function computeDiag(){
     +'<button class="ghost" data-action="print">Salvar / imprimir (PDF)</button></div>';
 
   const profile={arq:arqTop[0],medo:medoPct,culpa:culpaTop[0],dep:depTxt,postura:postTop,roteiro};
-  localStorage.setItem('ad_profile',JSON.stringify(profile));
+  cloudLS.setItem('ad_profile',JSON.stringify(profile));
   res.scrollIntoView({behavior:'smooth'});
 }
 function sendDiagToCoach(){
-  const p=JSON.parse(localStorage.getItem('ad_profile')||'null');
+  const p=JSON.parse(cloudLS.getItem('ad_profile')||'null');
   if(!p) return;
   go('coach');
   const txt='Aqui está meu diagnóstico: arquétipo dominante '+p.arq+', medo nas decisões '+p.medo+'%, culpa '+p.culpa+', '+p.dep+', postura '+p.postura+'. Por onde você sugere que eu comece?';
@@ -767,7 +805,7 @@ function renderCenSummary(){
     +'<p class="muted">Padrões escolhidos: '+cenState.picks.map(p=>p.pat).join(' · ')+'</p>'
     +'<button class="primary" data-action="restartCen">Refazer cenários</button> '
     +'<button class="ghost" data-action="go" data-arg="coach">Discutir com o Coach IA</button></div>';
-  localStorage.setItem('ad_ceno', JSON.stringify({score,good,bad,total:scenarios.length,picks:cenState.picks,verdict}));
+  cloudLS.setItem('ad_ceno', JSON.stringify({score,good,bad,total:scenarios.length,picks:cenState.picks,verdict}));
 }
 function restartCen(){cenState={i:0,picks:[]};renderCen();window.scrollTo(0,0);}
 
@@ -775,8 +813,8 @@ function restartCen(){cenState={i:0,picks:[]};renderCen();window.scrollTo(0,0);}
    DASHBOARD — resumo geral
 ============================================================ */
 function renderDashSummary(){
-  const p=JSON.parse(localStorage.getItem('ad_profile')||'null');
-  const c=JSON.parse(localStorage.getItem('ad_ceno')||'null');
+  const p=JSON.parse(cloudLS.getItem('ad_profile')||'null');
+  const c=JSON.parse(cloudLS.getItem('ad_ceno')||'null');
   const box=document.getElementById('dashSummary');
   let html='';
   if(p){
@@ -814,7 +852,7 @@ function renderDashSummary(){
   } else {
     html+='<div class="card"><div class="kicker">Teia dos Acontecimentos</div><p class="muted">Nenhum acontecimento mapeado ainda.</p></div>';
   }
-  const tl=JSON.parse(localStorage.getItem('ad_termo_last')||'null');
+  const tl=JSON.parse(cloudLS.getItem('ad_termo_last')||'null');
   if(tl){
     html+='<div class="card"><div class="kicker">Termômetro da Vontade</div>'
       +'<div class="result-row"><span>Último registro</span><span class="tag">'+tl.data+'</span></div>'
@@ -861,10 +899,10 @@ const QUAD={
 };
 let nucleoTab='interno';
 function loadNucleo(){
-  const d=JSON.parse(localStorage.getItem('ad_nucleo')||'null');
+  const d=JSON.parse(cloudLS.getItem('ad_nucleo')||'null');
   return d || {interno:[],externo:[]};
 }
-function saveNucleo(d){ localStorage.setItem('ad_nucleo', JSON.stringify(d)); }
+function saveNucleo(d){ cloudLS.setItem('ad_nucleo', JSON.stringify(d)); }
 function switchNucleo(tab){
   nucleoTab=tab;
   nucleoEditingId=null;
@@ -1001,8 +1039,8 @@ function removeNucleo(id){
    TEIA DOS ACONTECIMENTOS (interativo, SVG em rede)
 ============================================================ */
 const TEIA_TIPO_COLOR={Acontecimento:'#2F6F6A', Comportamento:'#8A8AA3', Relacionamento:'#C0392B'};
-function loadTeia(){ return JSON.parse(localStorage.getItem('ad_teia')||'[]'); }
-function saveTeia(d){ localStorage.setItem('ad_teia', JSON.stringify(d)); }
+function loadTeia(){ return JSON.parse(cloudLS.getItem('ad_teia')||'[]'); }
+function saveTeia(d){ cloudLS.setItem('ad_teia', JSON.stringify(d)); }
 function renderTeiaSvg(){
   const data=loadTeia();
   const cx=190,cy=190,R=150;
@@ -1084,8 +1122,8 @@ function renderObstaculosForm(){
     document.getElementById('tmObs_'+o[0]).addEventListener('input',function(){ document.getElementById('tmObsVal_'+o[0]).textContent=this.value; });
   });
 }
-function loadTermoHist(){ return JSON.parse(localStorage.getItem('ad_termo_hist')||'[]'); }
-function saveTermoHist(h){ localStorage.setItem('ad_termo_hist', JSON.stringify(h.slice(0,20))); }
+function loadTermoHist(){ return JSON.parse(cloudLS.getItem('ad_termo_hist')||'[]'); }
+function saveTermoHist(h){ cloudLS.setItem('ad_termo_hist', JSON.stringify(h.slice(0,20))); }
 function renderTermoHist(){
   const hist=loadTermoHist();
   const box=document.getElementById('termoHist');
@@ -1126,15 +1164,15 @@ function computeTermometro(e){
   const entry={id:Date.now()+'_'+Math.random().toString(36).slice(2,7), data:new Date().toLocaleDateString('pt-BR'), objetivo, busca, vontade, mediaObst:Number(mediaObst.toFixed(1)), cls};
   const hist=loadTermoHist(); hist.unshift(entry); saveTermoHist(hist);
   renderTermoHist();
-  localStorage.setItem('ad_termo_last', JSON.stringify(entry));
+  cloudLS.setItem('ad_termo_last', JSON.stringify(entry));
   renderDashSummary();
 }
 
 /* ============================================================
    PLANO DE AÇÃO PDA (MARCA PASSOS)
 ============================================================ */
-function loadPda(){ return JSON.parse(localStorage.getItem('ad_pda')||'[]'); }
-function savePda(d){ localStorage.setItem('ad_pda', JSON.stringify(d)); }
+function loadPda(){ return JSON.parse(cloudLS.getItem('ad_pda')||'[]'); }
+function savePda(d){ cloudLS.setItem('ad_pda', JSON.stringify(d)); }
 function addPda(e){
   e.preventDefault();
   const padrao=document.getElementById('pdaPadrao').value.trim();
@@ -1206,8 +1244,8 @@ function renderPda(){ renderPdaResumo(); renderPdaList(); }
 /* ============================================================
    FILTRO PPP
 ============================================================ */
-function loadPPP(){ return JSON.parse(localStorage.getItem('ad_ppp')||'[]'); }
-function savePPPData(d){ localStorage.setItem('ad_ppp', JSON.stringify(d)); }
+function loadPPP(){ return JSON.parse(cloudLS.getItem('ad_ppp')||'[]'); }
+function savePPPData(d){ cloudLS.setItem('ad_ppp', JSON.stringify(d)); }
 function addPPP(e){
   e.preventDefault();
   const problema=document.getElementById('pppProblema').value.trim();
@@ -1244,8 +1282,8 @@ function renderPPP(){
 /* ============================================================
    CONSTRUINDO O NÃO (Dependência / Proteção Emocional)
 ============================================================ */
-function loadNaoTool(){ return JSON.parse(localStorage.getItem('ad_naotool')||'[]'); }
-function saveNaoTool(d){ localStorage.setItem('ad_naotool', JSON.stringify(d)); }
+function loadNaoTool(){ return JSON.parse(cloudLS.getItem('ad_naotool')||'[]'); }
+function saveNaoTool(d){ cloudLS.setItem('ad_naotool', JSON.stringify(d)); }
 function populateNaoDatalist(){
   const ni=loadNucleo();
   const names=[...ni.interno.map(p=>p.nome), ...ni.externo.map(p=>p.nome)];
@@ -1308,10 +1346,10 @@ function renderAcao(){ renderPda(); renderPPP(); renderNaoTool(); renderGuardioe
 /* ============================================================
    PLANO PERFEITO
 ============================================================ */
-function loadSonho(){ return localStorage.getItem('ad_sonho')||''; }
+function loadSonho(){ return cloudLS.getItem('ad_sonho')||''; }
 function renderSonho(){ document.getElementById('ppSonho').value=loadSonho(); }
 function saveSonho(){
-  localStorage.setItem('ad_sonho', document.getElementById('ppSonho').value.trim());
+  cloudLS.setItem('ad_sonho', document.getElementById('ppSonho').value.trim());
   const st=document.getElementById('ppSonhoStatus'); st.textContent='Salvo ✓';
   setTimeout(()=>{st.textContent='';},2000);
   renderDashSummary();
@@ -1319,7 +1357,7 @@ function saveSonho(){
 const PILARES=['Financeiro','Saúde','Relacionamento'];
 function pilarId(p){ return p.replace(/[^a-zA-Z]/g,''); }
 function loadPilares(){
-  return JSON.parse(localStorage.getItem('ad_pilares')||'null') || {
+  return JSON.parse(cloudLS.getItem('ad_pilares')||'null') || {
     Financeiro:{meta:'',comoMedir:'',prazo:'',fichas:0},
     'Saúde':{meta:'',comoMedir:'',prazo:'',fichas:0},
     Relacionamento:{meta:'',comoMedir:'',prazo:'',fichas:0}
@@ -1359,12 +1397,12 @@ function savePilares(){
       fichas:Number(document.getElementById('ppFichas_'+id).value||0)
     };
   });
-  localStorage.setItem('ad_pilares', JSON.stringify(data));
+  cloudLS.setItem('ad_pilares', JSON.stringify(data));
   renderDashSummary();
 }
 const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 function loadMeses(){
-  return JSON.parse(localStorage.getItem('ad_meses')||'null') || MESES.map(m=>({mes:m,planejado:'',realizado:'',status:''}));
+  return JSON.parse(cloudLS.getItem('ad_meses')||'null') || MESES.map(m=>({mes:m,planejado:'',realizado:'',status:''}));
 }
 function renderMesesForm(){
   const data=loadMeses();
@@ -1388,11 +1426,11 @@ function saveMeses(){
     realizado:document.getElementById('ppMesReal_'+i).value.trim(),
     status:document.getElementById('ppMesStatus_'+i).value
   }));
-  localStorage.setItem('ad_meses', JSON.stringify(data));
+  cloudLS.setItem('ad_meses', JSON.stringify(data));
   renderDashSummary();
 }
 function loadLicoes(){
-  return JSON.parse(localStorage.getItem('ad_licoes')||'null') || ['T1','T2','T3','T4'].map(t=>({tri:t,aproximou:'',repetir:'',afastou:'',eliminar:''}));
+  return JSON.parse(cloudLS.getItem('ad_licoes')||'null') || ['T1','T2','T3','T4'].map(t=>({tri:t,aproximou:'',repetir:'',afastou:'',eliminar:''}));
 }
 function renderLicoesForm(){
   const data=loadLicoes();
@@ -1413,10 +1451,10 @@ function saveLicoes(){
     afastou:document.getElementById('ppLicAfasta_'+i).value.trim(),
     eliminar:document.getElementById('ppLicElim_'+i).value.trim()
   }));
-  localStorage.setItem('ad_licoes', JSON.stringify(data));
+  cloudLS.setItem('ad_licoes', JSON.stringify(data));
   renderDashSummary();
 }
-function loadCarta(){ return JSON.parse(localStorage.getItem('ad_carta')||'null'); }
+function loadCarta(){ return JSON.parse(cloudLS.getItem('ad_carta')||'null'); }
 function renderCartaAtual(){
   const c=loadCarta();
   document.getElementById('ppCartaAtual').innerHTML = c ? '<div class="note"><b>Assinado por '+escapeHtml(c.nome)+'</b> em '+c.data+':<br>"'+escapeHtml(c.texto)+'"</div>' : '';
@@ -1425,7 +1463,7 @@ function saveCarta(){
   const texto=document.getElementById('ppCartaTexto').value.trim();
   const nome=document.getElementById('ppCartaNome').value.trim();
   if(!texto || !nome) return;
-  localStorage.setItem('ad_carta', JSON.stringify({texto,nome,data:new Date().toLocaleDateString('pt-BR')}));
+  cloudLS.setItem('ad_carta', JSON.stringify({texto,nome,data:new Date().toLocaleDateString('pt-BR')}));
   renderCartaAtual(); renderDashSummary();
 }
 function renderPlanoPerfeito(){
@@ -1436,7 +1474,7 @@ function renderPlanoPerfeito(){
    CONFIG / CHAVES
 ============================================================ */
 function loadCfg(){
-  const c=JSON.parse(localStorage.getItem('ad_cfg')||'{}');
+  const c=JSON.parse(cloudLS.getItem('ad_cfg')||'{}');
   document.getElementById('provider').value=c.provider||'claude';
   document.getElementById('claudeKey').value=c.claudeKey||'';
   document.getElementById('claudeModel').value=c.claudeModel||'claude-opus-4-8';
@@ -1452,7 +1490,7 @@ function saveCfg(){
     openaiKey:document.getElementById('openaiKey').value.trim(),
     openaiModel:document.getElementById('openaiModel').value.trim()||'gpt-4o'
   };
-  localStorage.setItem('ad_cfg',JSON.stringify(c));
+  cloudLS.setItem('ad_cfg',JSON.stringify(c));
   toggleProvider();
 }
 function toggleProvider(){
@@ -1464,14 +1502,14 @@ const ALL_DATA_KEYS=['ad_diag','ad_profile','ad_ceno','ad_nucleo','ad_teia','ad_
   'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat'];
 function wipeAll(){
   if(confirm('Apagar TODOS os dados salvos neste dispositivo (diagnóstico, cenários, núcleo emocional, teia, plano de ação, plano perfeito, chat e chave de API)? Esta ação não pode ser desfeita.')){
-    ALL_DATA_KEYS.concat(['ad_cfg']).forEach(k=>localStorage.removeItem(k));
+    ALL_DATA_KEYS.concat(['ad_cfg']).forEach(k=>cloudLS.removeItem(k));
     alert('Dados apagados. A página será recarregada.');
     location.reload();
   }
 }
 function exportarDados(){
   const out={};
-  ALL_DATA_KEYS.forEach(k=>{ const v=localStorage.getItem(k); if(v!==null) out[k]=v; });
+  ALL_DATA_KEYS.forEach(k=>{ const v=cloudLS.getItem(k); if(v!==null) out[k]=v; });
   const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -1491,7 +1529,7 @@ function importarDadosArquivo(){
     try{ data=JSON.parse(e.target.result); }
     catch(err){ alert('Arquivo inválido. Verifique se é um backup gerado por este app.'); input.value=''; return; }
     if(!confirm('Isso vai substituir os dados atuais deste dispositivo pelos dados do arquivo importado. Continuar?')){ input.value=''; return; }
-    ALL_DATA_KEYS.forEach(k=>{ if(data[k]!==undefined) localStorage.setItem(k,data[k]); });
+    ALL_DATA_KEYS.forEach(k=>{ if(data[k]!==undefined) cloudLS.setItem(k,data[k]); });
     alert('Dados importados com sucesso! A página será recarregada.');
     location.reload();
   };
@@ -1519,7 +1557,7 @@ Domine e aplique estes conceitos ao orientar:
 
 Estilo: faça 1-2 perguntas para entender antes de aconselhar quando fizer sentido; conecte a situação a um conceito nomeado; ofereça um próximo passo concreto no formato Perceber/Decidir/Agir; seja breve (respostas de coach, não textões). Quando a pessoa trouxer risco grave à vida ou crise séria, oriente com cuidado a procurar apoio profissional/CVV 188. Termine frequentemente reforçando: "Aqui você pode mais."`;
 
-let chat=JSON.parse(localStorage.getItem('ad_chat')||'[]');
+let chat=[]; // populado em runAppInit(), depois do login/hidratação da nuvem
 function renderChat(){
   const log=document.getElementById('chatlog'); log.innerHTML='';
   if(chat.length===0){
@@ -1530,10 +1568,10 @@ function renderChat(){
   });
   log.scrollTop=log.scrollHeight;
 }
-function newChat(){chat=[];localStorage.setItem('ad_chat','[]');renderChat();}
+function newChat(){chat=[];cloudLS.setItem('ad_chat','[]');renderChat();}
 function chatKey(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();document.getElementById('chatform').requestSubmit();} }
 function refreshCoachStatus(){
-  const c=JSON.parse(localStorage.getItem('ad_cfg')||'{}');
+  const c=JSON.parse(cloudLS.getItem('ad_cfg')||'{}');
   const el=document.getElementById('coachStatus');
   const prov=c.provider||'claude';
   const key=prov==='claude'?c.claudeKey:c.openaiKey;
@@ -1548,12 +1586,12 @@ async function sendChat(e){
   e.preventDefault();
   const inp=document.getElementById('chatinput');
   const text=inp.value.trim(); if(!text) return false;
-  const c=JSON.parse(localStorage.getItem('ad_cfg')||'{}');
+  const c=JSON.parse(cloudLS.getItem('ad_cfg')||'{}');
   const prov=c.provider||'claude';
   const key=prov==='claude'?c.claudeKey:c.openaiKey;
   if(!key){ refreshCoachStatus(); go('coach'); return false; }
   chat.push({role:'user',content:text}); inp.value=''; inp.style.height='auto';
-  localStorage.setItem('ad_chat',JSON.stringify(chat)); renderChat();
+  cloudLS.setItem('ad_chat',JSON.stringify(chat)); renderChat();
   const log=document.getElementById('chatlog');
   const typing=document.createElement('div'); typing.className='typing'; typing.id='typing';
   typing.innerHTML='Coach digitando <span class="dot">•</span><span class="dot">•</span><span class="dot">•</span>';
@@ -1567,11 +1605,11 @@ async function sendChat(e){
     chat.push({role:'assistant',content:'⚠️ Erro ao contatar a IA: '+err.message+'\n\nVerifique sua chave e o modelo em Config. Cheque também se a chave tem créditos disponíveis.'});
   }
   document.getElementById('typing')?.remove();
-  localStorage.setItem('ad_chat',JSON.stringify(chat)); renderChat();
+  cloudLS.setItem('ad_chat',JSON.stringify(chat)); renderChat();
   return false;
 }
 function profileContext(){
-  const p=JSON.parse(localStorage.getItem('ad_profile')||'null');
+  const p=JSON.parse(cloudLS.getItem('ad_profile')||'null');
   if(!p) return '';
   return '\n\n[Contexto do diagnóstico do usuário: arquétipo '+p.arq+'; medo '+p.medo+'%; culpa '+p.culpa+'; '+p.dep+'; postura '+p.postura+'. Use isso para personalizar, mas confirme com ele.]';
 }
@@ -1649,19 +1687,131 @@ document.getElementById('ppLicoesSalvar').addEventListener('click',saveLicoes);
 document.getElementById('ppCartaSalvar').addEventListener('click',saveCarta);
 
 /* ============================================================
-   INIT
+   NUVEM: Supabase (login por usuário + histórico próprio)
+   Project URL e chave anon/public são seguros para ficar no
+   código do cliente — o isolamento real por usuário é garantido
+   pelas políticas de Row Level Security no banco de dados.
 ============================================================ */
-renderDiag();
-renderCen();
-loadCfg();
-renderChat();
-refreshCoachStatus();
-switchNucleo('interno');
-renderObstaculosForm();
-renderTeia();
-renderTermoHist();
-renderAcao();
-renderPlanoPerfeito();
+const SUPABASE_URL = 'https://jrifynqttkkbnmfmkfkc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyaWZ5bnF0dGtrYm5tZm1rZmtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyODI2MjksImV4cCI6MjA5ODg1ODYyOX0.qti3zrZ15swFuHVdz6TNbuo1Xdef3GtcHth4P05d1_o';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* Chaves que vivem na nuvem (por usuário). 'ad_cfg' fica de fora
+   de propósito — a chave de IA de cada um continua só no
+   dispositivo dele, nunca sobe pro banco de dados. */
+const CLOUD_KEYS = new Set(['ad_diag','ad_profile','ad_ceno','ad_nucleo','ad_teia','ad_termo_hist','ad_termo_last',
+  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat']);
+
+const cloudLS = {
+  _cache: {},
+  _sb: null,
+  _userId: null,
+  async init(sbClient, userId){
+    this._sb = sbClient; this._userId = userId; this._cache = {};
+    const { data, error } = await this._sb.from('user_data').select('data_key,data_value').eq('user_id', userId);
+    if(error){ console.error('Falha ao carregar dados da nuvem:', error); return; }
+    (data||[]).forEach(row=>{ this._cache[row.data_key] = row.data_value ? row.data_value.v : null; });
+  },
+  getItem(key){
+    if(!CLOUD_KEYS.has(key)) return window.localStorage.getItem(key);
+    return Object.prototype.hasOwnProperty.call(this._cache,key) ? this._cache[key] : null;
+  },
+  setItem(key,value){
+    if(!CLOUD_KEYS.has(key)){ window.localStorage.setItem(key,value); return; }
+    this._cache[key]=value;
+    if(this._sb && this._userId){
+      this._sb.from('user_data').upsert({user_id:this._userId, data_key:key, data_value:{v:value}, updated_at:new Date().toISOString()}, {onConflict:'user_id,data_key'})
+        .then(({error})=>{ if(error) console.error('Falha ao salvar na nuvem ('+key+'):', error); });
+    }
+  },
+  removeItem(key){
+    if(!CLOUD_KEYS.has(key)){ window.localStorage.removeItem(key); return; }
+    delete this._cache[key];
+    if(this._sb && this._userId){
+      this._sb.from('user_data').delete().eq('user_id',this._userId).eq('data_key',key)
+        .then(({error})=>{ if(error) console.error('Falha ao remover da nuvem ('+key+'):', error); });
+    }
+  }
+};
+
+/* ============================================================
+   INIT do app (só roda depois do login + hidratação da nuvem)
+============================================================ */
+function runAppInit(){
+  diagAns = JSON.parse(cloudLS.getItem('ad_diag')||'{}');
+  chat = JSON.parse(cloudLS.getItem('ad_chat')||'[]');
+  renderDiag();
+  renderCen();
+  loadCfg();
+  renderChat();
+  refreshCoachStatus();
+  switchNucleo('interno');
+  renderObstaculosForm();
+  renderTeia();
+  renderTermoHist();
+  renderAcao();
+  renderPlanoPerfeito();
+}
+
+/* ============================================================
+   AUTENTICAÇÃO (login / cadastro / logout)
+============================================================ */
+let authMode='signin';
+document.querySelectorAll('#authTabs button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    authMode=b.dataset.authtab;
+    document.querySelectorAll('#authTabs button').forEach(x=>x.classList.toggle('active',x===b));
+    document.getElementById('authTitle').textContent = authMode==='signin' ? 'Entrar' : 'Criar conta';
+    document.getElementById('authSubmitBtn').textContent = authMode==='signin' ? 'Entrar' : 'Criar conta';
+    document.getElementById('authMsg').textContent='';
+  });
+});
+document.getElementById('authForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email=document.getElementById('authEmail').value.trim();
+  const password=document.getElementById('authPassword').value;
+  const msg=document.getElementById('authMsg');
+  msg.className=''; msg.textContent='Um instante...';
+  try{
+    if(authMode==='signin'){
+      const {error}=await sb.auth.signInWithPassword({email,password});
+      if(error) throw error;
+    } else {
+      const {error}=await sb.auth.signUp({email,password});
+      if(error) throw error;
+      msg.className='ok';
+      msg.textContent='Conta criada! Se a confirmação por e-mail estiver ativa, verifique sua caixa de entrada antes de entrar.';
+      return;
+    }
+  }catch(err){
+    msg.className='err';
+    msg.textContent='Erro: '+err.message;
+  }
+});
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  await sb.auth.signOut();
+});
+
+async function showApp(userId){
+  document.getElementById('authGate').style.display='none';
+  document.getElementById('appRoot').style.display='block';
+  await cloudLS.init(sb, userId);
+  runAppInit();
+}
+function showAuthGate(){
+  document.getElementById('appRoot').style.display='none';
+  document.getElementById('authGate').style.display='block';
+}
+
+sb.auth.onAuthStateChange((event, session)=>{
+  if(session && session.user){ showApp(session.user.id); }
+  else { showAuthGate(); }
+});
+(async ()=>{
+  const {data:{session}} = await sb.auth.getSession();
+  if(session && session.user){ showApp(session.user.id); }
+  else { showAuthGate(); }
+})();
 </script>
 </body>
 </html>
