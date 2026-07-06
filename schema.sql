@@ -28,3 +28,16 @@ create policy "update_own_data"
 create policy "delete_own_data"
   on public.user_data for delete
   using (auth.uid() = user_id);
+
+-- Controle de uso diário do Coach IA (chave de API centralizada, paga pelo dono do app).
+-- Só a Edge Function (service_role) lê/escreve aqui; usuários não têm acesso direto.
+create table if not exists public.chat_usage (
+  user_id uuid references auth.users(id) on delete cascade not null,
+  day date not null,
+  count int not null default 0,
+  primary key (user_id, day)
+);
+
+alter table public.chat_usage enable row level security;
+-- Nenhuma policy criada de propósito: RLS ativo bloqueia todo acesso via chave anon/pública;
+-- a Edge Function usa a service_role key, que ignora RLS.

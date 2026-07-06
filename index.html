@@ -508,42 +508,22 @@
   </div>
   <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
     <button class="ghost" data-action="newChat">Nova conversa</button>
-    <button class="ghost" data-action="go" data-arg="cfg">Configurar chave / modelo</button>
+    <button class="ghost" data-action="go" data-arg="cfg">Configuração / dados</button>
   </div>
 </section>
 
 <!-- CONFIG -->
 <section id="cfg" class="view">
   <div class="kicker">Configuração</div>
-  <h1>Conexão com o chat model</h1>
+  <h1>Configuração</h1>
   <div class="card">
+    <h3>Coach IA</h3>
+    <p class="muted">O Coach IA já está pronto para uso — não é necessário configurar nenhuma chave de API. As mensagens passam por um servidor seguro mantido pelo app.</p>
     <label class="field">Provedor de IA</label>
     <select id="provider">
       <option value="claude">Claude (Anthropic)</option>
       <option value="openai">OpenAI (ChatGPT)</option>
     </select>
-
-    <div id="claudeCfg">
-      <label class="field">Chave da API Claude (começa com sk-ant-...)</label>
-      <input type="password" id="claudeKey" placeholder="sk-ant-...">
-      <label class="field">Modelo Claude</label>
-      <select id="claudeModel">
-        <option value="claude-opus-4-8">Claude Opus 4.8 (mais capaz)</option>
-        <option value="claude-sonnet-5">Claude Sonnet 5 (equilíbrio)</option>
-        <option value="claude-haiku-4-5">Claude Haiku 4.5 (rápido/econômico)</option>
-      </select>
-      <p class="muted">Obtenha uma chave em console.anthropic.com. A chamada usa acesso direto do navegador.</p>
-    </div>
-
-    <div id="openaiCfg" style="display:none">
-      <label class="field">Chave da API OpenAI (começa com sk-...)</label>
-      <input type="password" id="openaiKey" placeholder="sk-...">
-      <label class="field">Modelo OpenAI</label>
-      <input type="text" id="openaiModel" value="gpt-4o">
-      <p class="muted">Obtenha uma chave em platform.openai.com. Você pode trocar o nome do modelo (ex.: gpt-4o, gpt-4o-mini, gpt-4.1).</p>
-    </div>
-
-    <div class="note" style="margin-top:14px">A chave fica salva apenas neste navegador (localStorage) e é enviada somente para o provedor escolhido. Nunca a compartilhe.</div>
   </div>
 
   <div class="card">
@@ -1501,37 +1481,21 @@ function renderPlanoPerfeito(){
 }
 
 /* ============================================================
-   CONFIG / CHAVES
+   CONFIG
 ============================================================ */
 function loadCfg(){
   const c=JSON.parse(cloudLS.getItem('ad_cfg')||'{}');
   document.getElementById('provider').value=c.provider||'claude';
-  document.getElementById('claudeKey').value=c.claudeKey||'';
-  document.getElementById('claudeModel').value=c.claudeModel||'claude-opus-4-8';
-  document.getElementById('openaiKey').value=c.openaiKey||'';
-  document.getElementById('openaiModel').value=c.openaiModel||'gpt-4o';
-  toggleProvider();
 }
 function saveCfg(){
-  const c={
-    provider:document.getElementById('provider').value,
-    claudeKey:document.getElementById('claudeKey').value.trim(),
-    claudeModel:document.getElementById('claudeModel').value,
-    openaiKey:document.getElementById('openaiKey').value.trim(),
-    openaiModel:document.getElementById('openaiModel').value.trim()||'gpt-4o'
-  };
+  const c={ provider:document.getElementById('provider').value };
   cloudLS.setItem('ad_cfg',JSON.stringify(c));
-  toggleProvider();
-}
-function toggleProvider(){
-  const p=document.getElementById('provider').value;
-  document.getElementById('claudeCfg').style.display=p==='claude'?'block':'none';
-  document.getElementById('openaiCfg').style.display=p==='openai'?'block':'none';
+  refreshCoachStatus();
 }
 const ALL_DATA_KEYS=['ad_diag','ad_profile','ad_ceno','ad_nucleo','ad_teia','ad_termo_hist','ad_termo_last',
   'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat'];
 function wipeAll(){
-  if(confirm('Apagar TODOS os dados salvos neste dispositivo (diagnóstico, cenários, núcleo emocional, teia, plano de ação, plano perfeito, chat e chave de API)? Esta ação não pode ser desfeita.')){
+  if(confirm('Apagar TODOS os dados salvos (diagnóstico, cenários, núcleo emocional, teia, plano de ação, plano perfeito e chat)? Esta ação não pode ser desfeita.')){
     ALL_DATA_KEYS.concat(['ad_cfg']).forEach(k=>cloudLS.removeItem(k));
     alert('Dados apagados. A página será recarregada.');
     location.reload();
@@ -1602,24 +1566,14 @@ function newChat(){chat=[];cloudLS.setItem('ad_chat','[]');renderChat();}
 function chatKey(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();document.getElementById('chatform').requestSubmit();} }
 function refreshCoachStatus(){
   const c=JSON.parse(cloudLS.getItem('ad_cfg')||'{}');
-  const el=document.getElementById('coachStatus');
   const prov=c.provider||'claude';
-  const key=prov==='claude'?c.claudeKey:c.openaiKey;
-  if(!key){
-    el.innerHTML='<div class="warn">Nenhuma chave de IA configurada. O Coach ao vivo precisa de uma chave. <a href="#" data-action="go" data-arg="cfg">Configurar agora</a> — ou continue explorando o Diagnóstico e os Cenários, que funcionam offline.</div>';
-  } else {
-    const model=prov==='claude'?(c.claudeModel||'claude-opus-4-8'):(c.openaiModel||'gpt-4o');
-    el.innerHTML='<p class="muted">Conectado a <b>'+(prov==='claude'?'Claude':'OpenAI')+'</b> · modelo <span class="tag">'+model+'</span></p>';
-  }
+  const el=document.getElementById('coachStatus');
+  el.innerHTML='<p class="muted">Coach IA pronto para uso · <b>'+(prov==='claude'?'Claude':'OpenAI')+'</b></p>';
 }
 async function sendChat(e){
   e.preventDefault();
   const inp=document.getElementById('chatinput');
   const text=inp.value.trim(); if(!text) return false;
-  const c=JSON.parse(cloudLS.getItem('ad_cfg')||'{}');
-  const prov=c.provider||'claude';
-  const key=prov==='claude'?c.claudeKey:c.openaiKey;
-  if(!key){ refreshCoachStatus(); go('coach'); return false; }
   chat.push({role:'user',content:text}); inp.value=''; inp.style.height='auto';
   cloudLS.setItem('ad_chat',JSON.stringify(chat)); renderChat();
   const log=document.getElementById('chatlog');
@@ -1627,12 +1581,10 @@ async function sendChat(e){
   typing.innerHTML='Coach digitando <span class="dot">•</span><span class="dot">•</span><span class="dot">•</span>';
   log.appendChild(typing); log.scrollTop=log.scrollHeight;
   try{
-    let reply;
-    if(prov==='claude') reply=await callClaude(c,key);
-    else reply=await callOpenAI(c,key);
+    const reply=await callCoach();
     chat.push({role:'assistant',content:reply});
   }catch(err){
-    chat.push({role:'assistant',content:'⚠️ Erro ao contatar a IA: '+err.message+'\n\nVerifique sua chave e o modelo em Config. Cheque também se a chave tem créditos disponíveis.'});
+    chat.push({role:'assistant',content:'⚠️ Erro ao contatar o Coach IA: '+err.message+'\n\nTente novamente em instantes.'});
   }
   document.getElementById('typing')?.remove();
   cloudLS.setItem('ad_chat',JSON.stringify(chat)); renderChat();
@@ -1643,27 +1595,21 @@ function profileContext(){
   if(!p) return '';
   return '\n\n[Contexto do diagnóstico do usuário: arquétipo '+p.arq+'; medo '+p.medo+'%; culpa '+p.culpa+'; '+p.dep+'; postura '+p.postura+'. Use isso para personalizar, mas confirme com ele.]';
 }
-async function callClaude(c,key){
+async function callCoach(){
+  const c=JSON.parse(cloudLS.getItem('ad_cfg')||'{}');
   const msgs=chat.map(m=>({role:m.role,content:m.content}));
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:c.claudeModel||'claude-opus-4-8',max_tokens:900,system:SYSTEM_PROMPT+profileContext(),messages:msgs})
+  const {data,error}=await sb.functions.invoke('chat-coach',{
+    body:{provider:c.provider||'claude',messages:msgs,system:SYSTEM_PROMPT+profileContext()}
   });
-  if(!res.ok){ const t=await res.text(); throw new Error('HTTP '+res.status+' '+t.slice(0,200)); }
-  const data=await res.json();
-  return (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim()||'(sem resposta)';
-}
-async function callOpenAI(c,key){
-  const msgs=[{role:'system',content:SYSTEM_PROMPT+profileContext()}].concat(chat.map(m=>({role:m.role,content:m.content})));
-  const res=await fetch('https://api.openai.com/v1/chat/completions',{
-    method:'POST',
-    headers:{'content-type':'application/json','authorization':'Bearer '+key},
-    body:JSON.stringify({model:c.openaiModel||'gpt-4o',max_tokens:900,messages:msgs})
-  });
-  if(!res.ok){ const t=await res.text(); throw new Error('HTTP '+res.status+' '+t.slice(0,200)); }
-  const data=await res.json();
-  return (data.choices&&data.choices[0]&&data.choices[0].message.content||'(sem resposta)').trim();
+  if(error){
+    let msg=error.message||'Erro ao contatar o Coach IA';
+    if(error.context && typeof error.context.json==='function'){
+      try{ const body=await error.context.json(); if(body && body.error) msg=body.error; }catch(_){}
+    }
+    throw new Error(msg);
+  }
+  if(data && data.error){ throw new Error(data.error); }
+  return (data && data.reply) || '(sem resposta)';
 }
 /* ============================================================
    WIRING — delegação de eventos (funciona em qualquer navegador/painel,
@@ -1687,11 +1633,7 @@ document.addEventListener('change',function(e){
   if(el){ updatePdaStatus(el.dataset.pdaStatus, el.value); }
 });
 document.getElementById('importFile').addEventListener('change',importarDadosArquivo);
-// config: salvar ao alterar qualquer campo
-['provider','claudeKey','claudeModel','openaiKey','openaiModel'].forEach(function(id){
-  var el=document.getElementById(id);
-  if(el){ el.addEventListener('change',saveCfg); el.addEventListener('input',saveCfg); }
-});
+document.getElementById('provider').addEventListener('change',saveCfg);
 // chat: enviar
 document.getElementById('chatform').addEventListener('submit',sendChat);
 var ci=document.getElementById('chatinput');
@@ -1726,11 +1668,9 @@ const SUPABASE_URL = 'https://jrifynqttkkbnmfmkfkc.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyaWZ5bnF0dGtrYm5tZm1rZmtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyODI2MjksImV4cCI6MjA5ODg1ODYyOX0.qti3zrZ15swFuHVdz6TNbuo1Xdef3GtcHth4P05d1_o';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/* Chaves que vivem na nuvem (por usuário). 'ad_cfg' fica de fora
-   de propósito — a chave de IA de cada um continua só no
-   dispositivo dele, nunca sobe pro banco de dados. */
+/* Chaves que vivem na nuvem (por usuário). */
 const CLOUD_KEYS = new Set(['ad_diag','ad_profile','ad_ceno','ad_nucleo','ad_teia','ad_termo_hist','ad_termo_last',
-  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat']);
+  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat','ad_cfg']);
 
 const cloudLS = {
   _cache: {},
