@@ -120,7 +120,9 @@
 <!-- AUTH GATE (visível antes do login) -->
 <div id="authGate">
   <div class="logo" style="color:#1B1B3A;text-align:center;margin-bottom:18px;font-size:22px"><b>ALIANÇA</b> DIVERGENTE</div>
-  <div class="card">
+
+  <!-- login / cadastro -->
+  <div class="card" id="authCard">
     <div id="authTabs">
       <button type="button" class="active" data-authtab="signin">Entrar</button>
       <button type="button" data-authtab="signup">Criar conta</button>
@@ -133,8 +135,36 @@
       <input type="password" id="authPassword" required autocomplete="current-password" minlength="6">
       <button class="primary" type="submit" style="margin-top:14px;width:100%" id="authSubmitBtn">Entrar</button>
     </form>
+    <button type="button" id="forgotLink" class="ghost" style="margin-top:10px;width:100%;border:none;background:none;color:var(--muted);text-decoration:underline;font-size:12.5px">Esqueci minha senha</button>
     <div id="authMsg"></div>
   </div>
+
+  <!-- solicitar link de redefinição -->
+  <div class="card" id="resetCard" style="display:none">
+    <h1>Redefinir senha</h1>
+    <p class="muted">Informe seu e-mail — vamos te mandar um link para escolher uma senha nova.</p>
+    <form id="resetForm">
+      <label class="field">E-mail</label>
+      <input type="email" id="resetEmail" required autocomplete="email">
+      <button class="primary" type="submit" style="margin-top:14px;width:100%">Enviar link de redefinição</button>
+    </form>
+    <button type="button" id="backToLoginLink" class="ghost" style="margin-top:10px;width:100%;border:none;background:none;color:var(--muted);text-decoration:underline;font-size:12.5px">Voltar para o login</button>
+    <div id="resetMsg" style="margin-top:12px;font-size:13.5px"></div>
+  </div>
+
+  <!-- definir nova senha (aberto a partir do link do e-mail) -->
+  <div class="card" id="newPasswordCard" style="display:none">
+    <h1>Escolha sua nova senha</h1>
+    <form id="newPasswordForm">
+      <label class="field">Nova senha</label>
+      <input type="password" id="newPassword1" required minlength="6" autocomplete="new-password">
+      <label class="field">Confirme a nova senha</label>
+      <input type="password" id="newPassword2" required minlength="6" autocomplete="new-password">
+      <button class="primary" type="submit" style="margin-top:14px;width:100%">Salvar nova senha</button>
+    </form>
+    <div id="newPasswordMsg" style="margin-top:12px;font-size:13.5px"></div>
+  </div>
+
   <p class="muted" style="text-align:center;margin-top:14px">Cada pessoa tem seu próprio login e seu próprio histórico — ninguém mais tem acesso aos seus dados.</p>
 </div>
 
@@ -1792,6 +1822,57 @@ document.getElementById('logoutBtn').addEventListener('click', async ()=>{
   await sb.auth.signOut();
 });
 
+/* ------------------------------------------------------------
+   ESQUECI MINHA SENHA
+------------------------------------------------------------ */
+function showAuthCard(which){
+  document.getElementById('authCard').style.display = which==='login' ? 'block' : 'none';
+  document.getElementById('resetCard').style.display = which==='reset' ? 'block' : 'none';
+  document.getElementById('newPasswordCard').style.display = which==='newpass' ? 'block' : 'none';
+}
+document.getElementById('forgotLink').addEventListener('click', ()=>{
+  document.getElementById('resetMsg').textContent='';
+  document.getElementById('resetEmail').value = document.getElementById('authEmail').value.trim();
+  showAuthCard('reset');
+});
+document.getElementById('backToLoginLink').addEventListener('click', ()=>{
+  showAuthCard('login');
+});
+document.getElementById('resetForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email=document.getElementById('resetEmail').value.trim();
+  const msg=document.getElementById('resetMsg');
+  msg.className=''; msg.textContent='Um instante...';
+  try{
+    const redirectTo = window.location.origin + window.location.pathname;
+    const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo});
+    if(error) throw error;
+    msg.className='ok';
+    msg.textContent='Se esse e-mail estiver cadastrado, você vai receber um link para redefinir a senha em instantes. Verifique também a caixa de spam.';
+  }catch(err){
+    msg.className='err';
+    msg.textContent='Erro: '+err.message;
+  }
+});
+document.getElementById('newPasswordForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const p1=document.getElementById('newPassword1').value;
+  const p2=document.getElementById('newPassword2').value;
+  const msg=document.getElementById('newPasswordMsg');
+  if(p1!==p2){ msg.className='err'; msg.textContent='As senhas não coincidem.'; return; }
+  msg.className=''; msg.textContent='Um instante...';
+  try{
+    const {error} = await sb.auth.updateUser({password:p1});
+    if(error) throw error;
+    msg.className='ok';
+    msg.textContent='Senha atualizada! Entrando...';
+    // updateUser já deixa a sessão ativa — o listener de auth abre o app sozinho.
+  }catch(err){
+    msg.className='err';
+    msg.textContent='Erro: '+err.message;
+  }
+});
+
 async function showApp(userId){
   document.getElementById('authGate').style.display='none';
   document.getElementById('appRoot').style.display='block';
@@ -1801,16 +1882,29 @@ async function showApp(userId){
 function showAuthGate(){
   document.getElementById('appRoot').style.display='none';
   document.getElementById('authGate').style.display='block';
+  showAuthCard('login');
 }
 
+let inPasswordRecovery=false;
 sb.auth.onAuthStateChange((event, session)=>{
-  if(session && session.user){ showApp(session.user.id); }
+  if(event==='PASSWORD_RECOVERY'){
+    inPasswordRecovery=true;
+    document.getElementById('authGate').style.display='block';
+    document.getElementById('appRoot').style.display='none';
+    showAuthCard('newpass');
+    return;
+  }
+  if(inPasswordRecovery && event==='SIGNED_IN'){
+    // sessão de recuperação: só libera o app depois que a pessoa definir a senha nova
+    return;
+  }
+  if(session && session.user){ inPasswordRecovery=false; showApp(session.user.id); }
   else { showAuthGate(); }
 });
 (async ()=>{
   const {data:{session}} = await sb.auth.getSession();
-  if(session && session.user){ showApp(session.user.id); }
-  else { showAuthGate(); }
+  if(session && session.user && !inPasswordRecovery){ showApp(session.user.id); }
+  else if(!inPasswordRecovery){ showAuthGate(); }
 })();
 </script>
 </body>
