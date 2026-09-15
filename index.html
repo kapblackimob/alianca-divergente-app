@@ -1590,16 +1590,9 @@ Sugestões que viram botão no app — o Aliado decide com um clique em Aplicar 
 - Sem esse relato, pergunte antes de sugerir mudança de padrão. Nunca proponha remover pessoas.
 - Se a pessoa aparece nos dois núcleos, escolha o núcleo que o relato descreve: interno é quando ela interfere no Aliado; externo é quando o Aliado interfere nela.
 - Proponha criar ou atualizar um item do Marca Passos quando o Perceber, o Decidir e o Agir já estiverem claros na conversa, usando as palavras do próprio Aliado.
-- No texto, diga em uma frase o que você sugeriu e por quê, e que a sugestão aparece logo abaixo. No máximo 3 sugestões por resposta.
+- No texto da resposta, diga em uma frase o que você sugeriu e por quê, e que a sugestão aparece logo abaixo. No máximo 3 sugestões por resposta.
 - As notas entre colchetes "Sugestões mostradas no app" no histórico são escritas pelo app, com o que o Aliado aplicou ou ignorou; não escreva essas notas você.
-- Formato obrigatório: depois do texto, escreva a linha [[SUGESTOES]], depois uma lista JSON válida (aspas duplas, sem comentários, sem crases), e por fim a linha [[/SUGESTOES]]. O bloco não aparece para o Aliado. Exemplo com os quatro tipos aceitos:
-[[SUGESTOES]]
-[{"tipo":"nucleo","acao":"alterar","nucleo":"interno","nome":"Kelson","quadrante":"Vítima Intencional","nivel":2,"motivo":"Quando contrariado, ele se justifica para se isentar."},
-{"tipo":"nucleo","acao":"adicionar","nucleo":"externo","nome":"Tio","vinculo":"família","quadrante":"Narcisista","nivel":3,"motivo":"Você interfere nas decisões dele."},
-{"tipo":"marca_passos","acao":"criar","padrao":"Evitar conflito com o cunhado","tipo_padrao":"Relacionamento","pilar":"Relacionamento","perceber":"Cedo para não brigar","decidir":"Dizer não ao empréstimo","agir":"Conversar no sábado","prazo":"2026-09-27","degrau":"Questionar","motivo":"Você trouxe isso duas vezes."},
-{"tipo":"marca_passos","acao":"atualizar","padrao":"Procrastinar a conversa com meu sócio","agir":"Mandar a pauta na sexta","prazo":"2026-09-25","status":"Em andamento","motivo":"Prazo mais curto."}]
-[[/SUGESTOES]]
-Valores aceitos: nucleo = interno ou externo; quadrante = Vítima Natural, Vítima Intencional, Vingador ou Narcisista; nivel = número de 1 a 5; tipo_padrao = Acontecimento, Comportamento ou Relacionamento; pilar = Geral, Financeiro, Saúde ou Relacionamento; degrau = Reclamar/Justificar, Questionar ou Propor/Aplicar; status = Não iniciado, Em andamento, Concluído ou Travado; prazo = AAAA-MM-DD. Em "nome" e em "padrao" de atualizar, use o texto exato que está no resumo. Inclua só os campos que se aplicam.
+- Sua resposta tem dois campos: "resposta", com o texto para o Aliado, e "sugestoes", com a lista de sugestões (vazia quando não houver). Em cada sugestão preencha tipo, acao e motivo, e só os campos que se aplicam; os demais ficam nulos. Núcleo: tipo "nucleo" com acao "alterar" (nucleo, nome exato como está no resumo, quadrante e/ou nivel de 1 a 5) ou "adicionar" (nucleo, nome, vinculo, quadrante, nivel). Marca Passos: tipo "marca_passos" com acao "criar" (padrao, tipo_padrao, pilar, perceber, decidir, agir, prazo AAAA-MM-DD, degrau) ou "atualizar" (padrao com o texto exato do item e só os campos que mudam).
 Quando a pessoa trouxer risco grave à vida ou crise séria, interrompa esse ritmo e oriente com cuidado a procurar apoio profissional/CVV 188. De vez em quando, não sempre, feche reforçando: "Aqui você pode mais."`;
 
 let chat=[]; // populado em runAppInit(), depois do login/hidratação da nuvem
@@ -1656,7 +1649,11 @@ async function sendChat(e){
   typing.innerHTML='Coach digitando <span class="dot">•</span><span class="dot">•</span><span class="dot">•</span>';
   log.appendChild(typing); log.scrollTop=log.scrollHeight;
   try{
-    const {texto,sugestoes,formatoInvalido}=extrairSugestoes(await callCoach());
+    const data=await callCoach();
+    // servidor novo devolve as sugestões estruturadas; o bloco no texto fica como reserva
+    const {texto,sugestoes,formatoInvalido}=Array.isArray(data.sugestoes)
+      ? {texto:data.reply||'(sem resposta)', sugestoes:data.sugestoes.map(normalizarSugestao).filter(Boolean).slice(0,SUG_MAX)}
+      : extrairSugestoes(data.reply||'(sem resposta)');
     const resposta={role:'assistant',content:texto};
     if(sugestoes.length) resposta.sugestoes=sugestoes;
     if(formatoInvalido) resposta.sugestaoInvalida=true;
@@ -1744,7 +1741,7 @@ async function callCoach(){
   while(recentes.length && recentes[0].role!=='user') recentes.shift();
   const msgs=recentes.map(m=>({role:m.role,content:m.content+notaSugestoes(m)}));
   const {data,error}=await sb.functions.invoke('chat-coach',{
-    body:{messages:msgs,system:SYSTEM_PROMPT+toolsContext()}
+    body:{messages:msgs,system:SYSTEM_PROMPT+toolsContext(),structured:true}
   });
   if(error){
     let msg=error.message||'Erro ao contatar o Coach IA';
@@ -1754,7 +1751,7 @@ async function callCoach(){
     throw new Error(msg);
   }
   if(data && data.error){ throw new Error(data.error); }
-  return (data && data.reply) || '(sem resposta)';
+  return data || {};
 }
 /* ============================================================
    SUGESTÕES DO COACH (Núcleo Emocional e Marca Passos)

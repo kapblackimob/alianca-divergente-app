@@ -4,6 +4,8 @@ const DAILY_LIMIT = 30;
 const CLAUDE_MODEL = "claude-sonnet-5";
 const OPENAI_MODEL = "gpt-4o";
 const SETTINGS_KEY = "coach_provider";
+const MAX_TOKENS = 900;
+const MAX_TOKENS_STRUCTURED = 1200; // texto + sugestões em JSON
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +17,93 @@ function json(body: unknown, status = 200) {
     status,
     headers: { "content-type": "application/json", ...corsHeaders },
   });
+}
+
+// Resposta estruturada: o texto para o Aliado e as sugestões que o app mostra
+// como cartões com Aplicar/Ignorar. Campos que não se aplicam vêm nulos.
+const texto = { type: ["string", "null"] };
+const opcoes = (valores: string[]) => ({ type: ["string", "null"], enum: [...valores, null] });
+const CAMPOS_SUGESTAO: Record<string, unknown> = {
+  tipo: { type: "string", enum: ["nucleo", "marca_passos"] },
+  acao: { type: "string", enum: ["alterar", "adicionar", "criar", "atualizar"] },
+  nucleo: opcoes(["interno", "externo"]),
+  nome: texto,
+  vinculo: texto,
+  quadrante: opcoes(["Vítima Natural", "Vítima Intencional", "Vingador", "Narcisista"]),
+  nivel: { type: ["integer", "null"] },
+  padrao: texto,
+  tipo_padrao: opcoes(["Acontecimento", "Comportamento", "Relacionamento"]),
+  pilar: opcoes(["Geral", "Financeiro", "Saúde", "Relacionamento"]),
+  perceber: texto,
+  decidir: texto,
+  agir: texto,
+  prazo: texto,
+  degrau: opcoes(["Reclamar/Justificar", "Questionar", "Propor/Aplicar"]),
+  status: opcoes(["Não iniciado", "Em andamento", "Concluído", "Travado"]),
+  motivo: { type: "string" },
+};
+const SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["resposta", "sugestoes"],
+  properties: {
+    resposta: { type: "string", description: "Texto da resposta ao Aliado, em prosa." },
+    sugestoes: {
+      type: "array",
+      description: "Mudanças propostas no Núcleo Emocional ou no Marca Passos, que o Aliado aplica com um clique. Lista vazia quando não houver.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: Object.keys(CAMPOS_SUGESTAO),
+        properties: CAMPOS_SUGESTAO,
+      },
+    },
+  },
+};
+
+type Chamada = { ok: true; text: string } | { ok: false; status: number; error: string };
+
+async function chamarOpenAI(key: string, system: string, messages: unknown[], structured: boolean): Promise<Chamada> {
+  const body: Record<string, unknown> = {
+    model: OPENAI_MODEL,
+    max_tokens: structured ? MAX_TOKENS_STRUCTURED : MAX_TOKENS,
+    messages: [{ role: "system", content: system }].concat(messages as { role: string; content: string }[]),
+  };
+  if (structured) {
+    body.response_format = { type: "json_schema", json_schema: { name: "coach_resposta", strict: true, schema: SCHEMA } };
+  }
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", "authorization": "Bearer " + key },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) return { ok: false, status: res.status, error: (await res.text()).slice(0, 300) };
+  const result = await res.json();
+  const msg = result.choices?.[0]?.message ?? {};
+  return { ok: true, text: (msg.content || msg.refusal || "").trim() };
+}
+
+async function chamarClaude(key: string, system: string, messages: unknown[], structured: boolean): Promise<Chamada> {
+  const body: Record<string, unknown> = {
+    model: CLAUDE_MODEL,
+    max_tokens: structured ? MAX_TOKENS_STRUCTURED : MAX_TOKENS,
+    system,
+    messages,
+  };
+  if (structured) body.output_config = { format: { type: "json_schema", schema: SCHEMA } };
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) return { ok: false, status: res.status, error: (await res.text()).slice(0, 300) };
+  const result = await res.json();
+  const text = (result.content ?? [])
+    .filter((b: { type: string }) => b.type === "text")
+    .map((b: { text: string }) => b.text)
+    .join("")
+    .trim();
+  return { ok: true, text };
 }
 
 Deno.serve(async (req) => {
@@ -37,7 +126,8 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) return json({ error: "Sessão inválida. Faça login novamente." }, 401);
     const userId = userData.user.id;
 
-    const { messages, system } = await req.json();
+    // structured: só a versão nova do app pede; versões em cache seguem recebendo só o texto
+    const { messages, system, structured } = await req.json();
     if (!Array.isArray(messages) || messages.length === 0) {
       return json({ error: "Mensagem vazia." }, 400);
     }
@@ -65,60 +155,44 @@ Deno.serve(async (req) => {
       return json({ error: "Limite diário de mensagens do Coach IA atingido. Tente novamente amanhã." }, 429);
     }
 
-    let reply: string;
+    const key = Deno.env.get(useOpenAI ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY");
+    if (!key) return json({ error: "Coach IA (" + (useOpenAI ? "OpenAI" : "Claude") + ") não configurado no servidor." }, 500);
+    const chamar = useOpenAI ? chamarOpenAI : chamarClaude;
 
-    if (useOpenAI) {
-      const openaiKey = Deno.env.get("OPENAI_API_KEY");
-      if (!openaiKey) return json({ error: "Coach IA (OpenAI) não configurado no servidor." }, 500);
+    let reply = "";
+    let sugestoes: unknown[] | undefined;
 
-      const openaiMsgs = [{ role: "system", content: system }].concat(messages);
-      const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "authorization": "Bearer " + openaiKey,
-        },
-        body: JSON.stringify({ model: OPENAI_MODEL, max_tokens: 900, messages: openaiMsgs }),
-      });
-
-      if (!openaiRes.ok) {
-        const errText = await openaiRes.text();
-        return json({ error: "Erro ao contatar a IA: " + errText.slice(0, 300) }, 502);
+    let resultado = await chamar(key, system, messages, structured === true);
+    if (!resultado.ok && structured === true && resultado.status === 400) {
+      // o provedor recusou o formato estruturado: responde em texto para o Coach não parar
+      console.error("Formato estruturado recusado, voltando para texto:", resultado.error);
+      resultado = await chamar(key, system, messages, false);
+    } else if (resultado.ok && structured === true) {
+      try {
+        const parsed = JSON.parse(resultado.text);
+        reply = String(parsed.resposta ?? "").trim();
+        sugestoes = Array.isArray(parsed.sugestoes) ? parsed.sugestoes : [];
+      } catch (_) {
+        // resposta cortada ou fora do formato: aproveita o texto se der
+        const m = resultado.text.match(/"resposta"\s*:\s*"((?:[^"\\]|\\.)*)/);
+        reply = resultado.text;
+        if (m) {
+          try { reply = JSON.parse('"' + m[1] + '"'); } catch (_) { reply = m[1]; }
+        }
       }
-      const result = await openaiRes.json();
-      reply = (result.choices?.[0]?.message?.content || "").trim() || "(sem resposta)";
-    } else {
-      const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-      if (!anthropicKey) return json({ error: "Coach IA (Claude) não configurado no servidor." }, 500);
-
-      const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": anthropicKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 900, system, messages }),
-      });
-
-      if (!anthropicRes.ok) {
-        const errText = await anthropicRes.text();
-        return json({ error: "Erro ao contatar a IA: " + errText.slice(0, 300) }, 502);
-      }
-      const result = await anthropicRes.json();
-      reply = (result.content ?? [])
-        .filter((b: { type: string }) => b.type === "text")
-        .map((b: { text: string }) => b.text)
-        .join("")
-        .trim() || "(sem resposta)";
     }
+    if (!resultado.ok) {
+      return json({ error: "Erro ao contatar a IA: " + resultado.error }, 502);
+    }
+    if (!reply) reply = sugestoes === undefined ? resultado.text : "";
+    reply = reply || "(sem resposta)";
 
     await admin.from("chat_usage").upsert(
       { user_id: userId, day: today, count: currentCount + 1 },
       { onConflict: "user_id,day" },
     );
 
-    return json({ reply });
+    return json(sugestoes === undefined ? { reply } : { reply, sugestoes });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }
