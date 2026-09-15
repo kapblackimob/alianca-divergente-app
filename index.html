@@ -83,6 +83,15 @@
   .msg.user{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:4px}
   .msg.bot{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
   .msg.sys{align-self:center;background:#fbf6e8;border:1px solid var(--gold);color:var(--ink);font-size:13px;text-align:center}
+  .sug-list{align-self:flex-start;max-width:82%;display:flex;flex-direction:column;gap:8px;margin-top:-4px}
+  .sug{background:#fbf6e8;border:1px solid var(--gold);border-radius:12px;padding:10px 12px;font-size:13.5px}
+  .sug.off{opacity:.8}
+  .sug-k{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a6d1f}
+  .sug-t{margin:2px 0 4px;color:var(--ink)}
+  .sug-m{color:var(--muted);font-size:13px}
+  .sug-b{display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap}
+  .sug-ok{color:#2E7D32;font-weight:600}
+  .sug-no{color:var(--muted);font-size:13px}
   #chatform{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:#fff}
   #chatinput{flex:1;resize:none;border:1px solid var(--line);border-radius:9px;padding:10px;font-family:inherit;font-size:14.5px;max-height:120px}
   input[type=text],input[type=password],select,textarea{border:1px solid var(--line);border-radius:9px;padding:10px;font-family:inherit;font-size:14px;width:100%}
@@ -1574,6 +1583,20 @@ Ferramentas do protocolo — o Aliado preenche as ferramentas no app antes de co
 - Parta do que já está no resumo. Não pergunte de novo o que ele já respondeu; retome as palavras dele para confirmar e aprofunde a partir dali.
 - Se houver um item em FOCO do Marca Passos, o contexto inicial já foi feito na ferramenta: vá direto a afinar o Perceber, o Decidir e o Agir desse item (isso vale mesmo antes das 2-3 trocas pedidas acima), ainda com uma pergunta por vez.
 - Se o assunto pede uma ferramenta que aparece como "ainda não preenchido", sugira que ele registre ali primeiro (por exemplo, a pessoa no Núcleo Emocional ou o padrão no Marca Passos), para a próxima conversa já partir da resposta dele.
+
+Sugestões que viram botão no app — você nunca altera nada sozinho; o Aliado decide com um clique em Aplicar ou Ignorar:
+- Você pode propor mudanças no Núcleo Emocional e no Marca Passos. No texto da resposta, explique a sugestão em prosa, com o porquê, e diga que ela aparece logo abaixo para ele aplicar ou ignorar.
+- Só sugira mudar o padrão de uma pessoa depois que o Aliado tiver contado o que ela faz quando as coisas dão errado ou quando se sente ferida. Sem esse relato, pergunte antes de sugerir. Nunca proponha remover pessoas.
+- Proponha criar ou atualizar um item do Marca Passos quando o Perceber, o Decidir e o Agir já estiverem claros na conversa, usando as palavras do próprio Aliado.
+- No máximo 3 sugestões por resposta, e só quando fizer sentido: a maioria das respostas não tem nenhuma.
+- As notas entre colchetes "Sugestões mostradas no app" no histórico são escritas pelo app, com o que o Aliado aplicou ou ignorou; não escreva essas notas você.
+- Formato: no fim da resposta, depois do texto, escreva o bloco abaixo (ele não aparece para o Aliado; o app transforma em cartões). Use só estes objetos e só os campos que se aplicam:
+[[SUGESTOES]]
+[{"tipo":"nucleo","acao":"alterar","nucleo":"interno ou externo","nome":"nome exato como está no mapa","quadrante":"Vítima Natural, Vítima Intencional, Vingador ou Narcisista","nivel":1 a 5,"motivo":"frase curta"},
+{"tipo":"nucleo","acao":"adicionar","nucleo":"interno ou externo","nome":"...","vinculo":"...","quadrante":"...","nivel":1 a 5,"motivo":"..."},
+{"tipo":"marca_passos","acao":"criar","padrao":"...","tipo_padrao":"Acontecimento, Comportamento ou Relacionamento","pilar":"Geral, Financeiro, Saúde ou Relacionamento","perceber":"...","decidir":"...","agir":"...","prazo":"AAAA-MM-DD ou vazio","degrau":"Reclamar/Justificar, Questionar ou Propor/Aplicar","motivo":"..."},
+{"tipo":"marca_passos","acao":"atualizar","padrao":"nome exato do item existente","perceber":"...","decidir":"...","agir":"...","prazo":"AAAA-MM-DD","status":"Não iniciado, Em andamento, Concluído ou Travado","motivo":"..."}]
+[[/SUGESTOES]]
 Quando a pessoa trouxer risco grave à vida ou crise séria, interrompa esse ritmo e oriente com cuidado a procurar apoio profissional/CVV 188. De vez em quando, não sempre, feche reforçando: "Aqui você pode mais."`;
 
 let chat=[]; // populado em runAppInit(), depois do login/hidratação da nuvem
@@ -1582,8 +1605,9 @@ function renderChat(){
   if(chat.length===0){
     log.innerHTML='<div class="msg sys">Bem-vindo, Aliado. Eu parto do que você já preencheu nas ferramentas (diagnóstico, Núcleo, Teia, Marca Passos). Descreva uma situação, um padrão que se repete ou uma decisão que você está adiando.</div>';
   }
-  chat.forEach(m=>{
+  chat.forEach((m,mi)=>{
     const d=document.createElement('div'); d.className='msg '+(m.role==='user'?'user':'bot'); d.textContent=m.content; log.appendChild(d);
+    if(m.role==='assistant' && Array.isArray(m.sugestoes) && m.sugestoes.length) log.appendChild(renderSugestoes(m.sugestoes,mi));
   });
   log.scrollTop=log.scrollHeight;
 }
@@ -1624,8 +1648,10 @@ async function sendChat(e){
   typing.innerHTML='Coach digitando <span class="dot">•</span><span class="dot">•</span><span class="dot">•</span>';
   log.appendChild(typing); log.scrollTop=log.scrollHeight;
   try{
-    const reply=await callCoach();
-    chat.push({role:'assistant',content:reply});
+    const {texto,sugestoes}=extrairSugestoes(await callCoach());
+    const resposta={role:'assistant',content:texto};
+    if(sugestoes.length) resposta.sugestoes=sugestoes;
+    chat.push(resposta);
   }catch(err){
     chat.push({role:'assistant',content:'⚠️ Erro ao contatar o Coach IA: '+err.message+'\n\nTente novamente em instantes.'});
   }
@@ -1700,13 +1726,14 @@ function toolsContext(){
   if(sonho) lines.push('Sonho Grande: '+cut(sonho,160)+'.');
 
   if(vazias.length) lines.push('Ainda não preenchido no app: '+vazias.join(', ')+'.');
+  lines.push('Hoje: '+today+'.');
   const texto=lines.join('\n').replace(/\.{2,}/g,'.').replace(/\.;/g,';').replace(/…\./g,'…');
   return '\n\n[Resumo das ferramentas do protocolo, com as palavras do próprio Aliado]\n'+texto;
 }
 async function callCoach(){
   let recentes=chat.slice(-HIST_MAX);
   while(recentes.length && recentes[0].role!=='user') recentes.shift();
-  const msgs=recentes.map(m=>({role:m.role,content:m.content}));
+  const msgs=recentes.map(m=>({role:m.role,content:m.content+notaSugestoes(m)}));
   const {data,error}=await sb.functions.invoke('chat-coach',{
     body:{messages:msgs,system:SYSTEM_PROMPT+toolsContext()}
   });
@@ -1721,11 +1748,157 @@ async function callCoach(){
   return (data && data.reply) || '(sem resposta)';
 }
 /* ============================================================
+   SUGESTÕES DO COACH (Núcleo Emocional e Marca Passos)
+   O Coach escreve as sugestões num bloco JSON no fim da resposta. O app
+   tira o bloco do texto, mostra cada sugestão como cartão e só altera os
+   dados quando o Aliado clica em Aplicar.
+============================================================ */
+const SUG_RE=/\[\[SUGESTOES\]\]([\s\S]*?)(?:\[\[\/SUGESTOES\]\]|$)/;
+const SUG_MAX=3;
+const PDA_TIPOS=['Acontecimento','Comportamento','Relacionamento'];
+const PDA_PILARES=['Geral','Financeiro','Saúde','Relacionamento'];
+const PDA_DEGRAUS=['Reclamar/Justificar','Questionar','Propor/Aplicar'];
+const PDA_STATUS=['Não iniciado','Em andamento','Concluído','Travado'];
+function norm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim().toLowerCase(); }
+function escolher(valor,lista){ return lista.find(x=>norm(x)===norm(valor))||null; }
+function quadKey(v){ return QUAD[v] ? v : (Object.keys(QUAD).find(k=>norm(QUAD[k].label)===norm(v))||null); }
+function quadLabel(k){ return (QUAD[k]||{}).label||k; }
+function nivelValido(n){ n=Number(n); return Number.isInteger(n) && n>=1 && n<=5; }
+function dataValida(s){ return /^\d{4}-\d{2}-\d{2}$/.test(String(s||'')); }
+function sugKicker(s){ return s.tipo==='nucleo' ? (s.nucleo==='externo'?'Núcleo externo':'Núcleo interno') : 'Marca Passos'; }
+
+function extrairSugestoes(reply){
+  const m=String(reply).match(SUG_RE);
+  if(!m) return {texto:reply, sugestoes:[]};
+  const texto=String(reply).replace(SUG_RE,'').trim()||'(sem resposta)';
+  let lista;
+  try{ lista=JSON.parse(m[1].trim()); }catch(_){ return {texto, sugestoes:[]}; }
+  if(!Array.isArray(lista)) lista=[lista];
+  const sugestoes=lista.filter(s=>s && typeof s==='object' && (s.tipo==='nucleo'||s.tipo==='marca_passos'))
+    .slice(0,SUG_MAX).map(s=>Object.assign({},s,{estado:'pendente'}));
+  return {texto, sugestoes};
+}
+
+/* Confronta a sugestão com os dados atuais: devolve o texto do cartão e,
+   se ela puder ser aplicada, a função que aplica. */
+function descreverSugestao(s){
+  const kicker=sugKicker(s);
+  if(s.tipo==='nucleo'){
+    const nucleo=s.nucleo==='externo'?'externo':'interno';
+    const pessoa=loadNucleo()[nucleo].find(p=>norm(p.nome)===norm(s.nome));
+    const quad=s.quadrante ? quadKey(s.quadrante) : null;
+    if(s.acao==='adicionar'){
+      const titulo='Adicionar '+cut(s.nome,40)+(s.vinculo?' ('+cut(s.vinculo,30)+')':'')+(quad?': '+quadLabel(quad):'')+(nivelValido(s.nivel)?', nível '+Number(s.nivel):'');
+      if(!s.nome || !quad || !nivelValido(s.nivel)) return {kicker, titulo, bloqueio:'Sugestão incompleta: faltou nome, padrão ou nível.'};
+      if(pessoa) return {kicker, titulo, bloqueio:'Essa pessoa já está no mapa.'};
+      return {kicker, titulo, aplicar(){
+        const d=loadNucleo();
+        d[nucleo].push({id:Date.now()+'_'+Math.random().toString(36).slice(2,7), nome:cut(s.nome,40), vinculo:cut(s.vinculo,30), quad, nivel:Number(s.nivel), jitter:(Math.random()*50-25)});
+        saveNucleo(d);
+      }};
+    }
+    if(!pessoa) return {kicker, titulo:'Alterar '+cut(s.nome||'pessoa',40), bloqueio:'Não encontrei essa pessoa no '+kicker.toLowerCase()+'.'};
+    const novoQuad=quad||pessoa.quad, novoNivel=nivelValido(s.nivel)?Number(s.nivel):pessoa.nivel;
+    const antes=quadLabel(pessoa.quad)+', nível '+pessoa.nivel, depois=quadLabel(novoQuad)+', nível '+novoNivel;
+    if(antes===depois) return {kicker, titulo:pessoa.nome+': '+antes, bloqueio:'O mapa já está assim.'};
+    return {kicker, titulo:pessoa.nome+': '+antes+' → '+depois, aplicar(){
+      const d=loadNucleo(); const p=d[nucleo].find(x=>x.id===pessoa.id);
+      if(p){ p.quad=novoQuad; p.nivel=novoNivel; saveNucleo(d); }
+    }};
+  }
+
+  const pda=loadPda();
+  if(s.acao==='atualizar'){
+    const it=pda.find(x=>norm(x.padrao)===norm(s.padrao));
+    const titulo='Atualizar "'+cut(it?it.padrao:s.padrao,70)+'"';
+    if(!it) return {kicker, titulo, bloqueio:'Não encontrei esse item no Marca Passos.'};
+    const mud={};
+    ['perceber','decidir','agir'].forEach(k=>{ if(s[k] && cut(s[k],200)!==it[k]) mud[k]=cut(s[k],200); });
+    if(dataValida(s.prazo) && s.prazo!==it.prazo) mud.prazo=s.prazo;
+    const st=escolher(s.status,PDA_STATUS); if(st && st!==it.status) mud.status=st;
+    const nomes={perceber:'Perceber',decidir:'Decidir',agir:'Agir',prazo:'Prazo',status:'Status'};
+    const detalhe=Object.keys(mud).map(k=>nomes[k]+': '+mud[k]).join(' · ');
+    if(!detalhe) return {kicker, titulo, bloqueio:'O item já está assim.'};
+    return {kicker, titulo, detalhe, aplicar(){
+      const d=loadPda(); const x=d.find(y=>y.id===it.id);
+      if(x){ Object.assign(x,mud); savePda(d); }
+    }};
+  }
+  if(!s.padrao) return {kicker, titulo:'Novo item', bloqueio:'Sugestão incompleta: faltou o padrão.'};
+  const item={
+    padrao:cut(s.padrao,120),
+    tipo:escolher(s.tipo_padrao,PDA_TIPOS)||'Acontecimento',
+    pilar:escolher(s.pilar,PDA_PILARES)||'Geral',
+    perceber:cut(s.perceber,200), decidir:cut(s.decidir,200), agir:cut(s.agir,200),
+    prazo:dataValida(s.prazo)?s.prazo:'',
+    status:'Não iniciado',
+    degrau:escolher(s.degrau,PDA_DEGRAUS)||'Reclamar/Justificar',
+    guardiao:cut(s.guardiao,40)
+  };
+  const titulo='Criar "'+item.padrao+'" ('+item.tipo+', '+item.pilar+')';
+  const detalhe=[item.perceber&&'Perceber: '+item.perceber, item.decidir&&'Decidir: '+item.decidir, item.agir&&'Agir: '+item.agir, item.prazo&&'Prazo: '+item.prazo].filter(Boolean).join(' · ');
+  if(pda.some(x=>norm(x.padrao)===norm(item.padrao))) return {kicker, titulo, detalhe, bloqueio:'Já existe um item com esse padrão.'};
+  return {kicker, titulo, detalhe, aplicar(){
+    const d=loadPda();
+    if(!d.some(x=>norm(x.padrao)===norm(item.padrao))){ d.push(Object.assign({id:Date.now()+'_'+Math.random().toString(36).slice(2,7)},item)); savePda(d); }
+  }};
+}
+
+function renderSugestoes(lista,mi){
+  const box=document.createElement('div'); box.className='sug-list';
+  const btn='style="padding:6px 12px;font-size:13px"';
+  box.innerHTML=lista.map((s,si)=>{
+    const pendente=s.estado==='pendente';
+    const desc=pendente ? descreverSugestao(s) : {kicker:sugKicker(s), titulo:s.titulo||''};
+    const arg=mi+':'+si;
+    let acoes;
+    if(!pendente) acoes=s.estado==='aplicada' ? '<span class="sug-ok">Aplicada ✓</span>' : '<span class="sug-no">Ignorada</span>';
+    else if(desc.bloqueio) acoes='<span class="sug-no">'+escapeHtml(desc.bloqueio)+'</span><button class="ghost" data-action="ignorarSugestao" data-arg="'+arg+'" '+btn+'>Dispensar</button>';
+    else acoes='<button class="primary" data-action="aplicarSugestao" data-arg="'+arg+'" '+btn+'>Aplicar</button><button class="ghost" data-action="ignorarSugestao" data-arg="'+arg+'" '+btn+'>Ignorar</button>';
+    return '<div class="sug'+(pendente?'':' off')+'">'
+      +'<div class="sug-k">Sugestão · '+escapeHtml(desc.kicker)+'</div>'
+      +'<div class="sug-t">'+escapeHtml(String(desc.titulo))+'</div>'
+      +(pendente && desc.detalhe ? '<div class="sug-m">'+escapeHtml(desc.detalhe)+'</div>' : '')
+      +(s.motivo ? '<div class="sug-m">'+escapeHtml(cut(s.motivo,220))+'</div>' : '')
+      +'<div class="sug-b">'+acoes+'</div></div>';
+  }).join('');
+  return box;
+}
+
+function decidirSugestao(arg,aplicar){
+  const [mi,si]=String(arg).split(':').map(Number);
+  const s=chat[mi] && Array.isArray(chat[mi].sugestoes) ? chat[mi].sugestoes[si] : null;
+  if(!s || s.estado!=='pendente') return;
+  const desc=descreverSugestao(s);
+  if(aplicar && !desc.aplicar) return;
+  s.titulo=desc.titulo+(desc.detalhe?' · '+desc.detalhe:'');
+  if(aplicar){
+    desc.aplicar();
+    s.estado='aplicada';
+    if(s.tipo==='nucleo') renderNucleo(); else { renderPda(); renderGuardioesList(); }
+    renderDashSummary();
+  } else s.estado='ignorada';
+  cloudLS.setItem('ad_chat',JSON.stringify(chat));
+  renderChat();
+}
+function aplicarSugestao(arg){ decidirSugestao(arg,true); }
+function ignorarSugestao(arg){ decidirSugestao(arg,false); }
+
+/* Nota que acompanha a resposta do Coach no histórico enviado à IA, para ele
+   saber o que o Aliado fez com cada sugestão. */
+function notaSugestoes(m){
+  if(!Array.isArray(m.sugestoes) || !m.sugestoes.length) return '';
+  const estado={aplicada:'aplicada', ignorada:'ignorada', pendente:'ainda sem resposta'};
+  return '\n[Sugestões mostradas no app: '+m.sugestoes.map(s=>(s.titulo||descreverSugestao(s).titulo)+' — '+estado[s.estado]).join('; ')+']';
+}
+
+/* ============================================================
    WIRING — delegação de eventos (funciona em qualquer navegador/painel,
    sem depender de handlers onclick embutidos no HTML)
 ============================================================ */
 var ACTIONS={ go:function(a){go(a)}, computeDiag:computeDiag, resetDiag:resetDiag,
   sendDiagToCoach:sendDiagToCoach, sendPdaToCoach:sendPdaToCoach, clearCoachFocus:clearCoachFocus,
+  aplicarSugestao:aplicarSugestao, ignorarSugestao:ignorarSugestao,
   print:function(){window.print()}, nextCen:nextCen,
   restartCen:restartCen, newChat:newChat, wipeAll:wipeAll,
   switchNucleo:switchNucleo, removeNucleo:removeNucleo, editNucleoStart:editNucleoStart, cancelNucleoEdit:cancelNucleoEdit, saveNucleoEdit:saveNucleoEdit,
