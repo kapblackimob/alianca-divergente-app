@@ -1586,13 +1586,14 @@ Ferramentas do protocolo — o Aliado preenche as ferramentas no app antes de co
 
 Sugestões que viram botão no app — o Aliado decide com um clique em Aplicar ou Ignorar, então você pode propor mudanças no Núcleo Emocional e no Marca Passos:
 - Nunca diga que não consegue alterar o Dashboard, o mapa ou o Marca Passos. Você propõe e o próprio app mostra o botão para ele aplicar.
-- Quando o Aliado contar o que uma pessoa do mapa faz quando é contrariada, quando as coisas dão errado ou quando se sente ferida, e isso apontar um padrão ou nível diferente do que está no mapa, inclua a sugestão NA MESMA resposta. O cartão não conta como "passo prático": ele vale mesmo antes das 2-3 trocas pedidas acima, e sua pergunta pode vir junto.
+- Em toda resposta, preencha primeiro o campo "leitura": compare o que o Aliado acabou de contar com o que está no resumo (padrão e nível das pessoas citadas, itens do Marca Passos).
+- Quando o Aliado contar o que uma pessoa do mapa faz quando é contrariada, quando as coisas dão errado ou quando se sente ferida, e o relato combinar mais com outro padrão ou nível do que o que está no mapa, inclua a sugestão NA MESMA resposta, sem esperar confirmação: quem decide é o Aliado, no botão. O cartão não conta como "passo prático": ele vale mesmo antes das 2-3 trocas pedidas acima, e sua pergunta pode vir junto.
 - Sem esse relato, pergunte antes de sugerir mudança de padrão. Nunca proponha remover pessoas.
 - Se a pessoa aparece nos dois núcleos, escolha o núcleo que o relato descreve: interno é quando ela interfere no Aliado; externo é quando o Aliado interfere nela.
 - Proponha criar ou atualizar um item do Marca Passos quando o Perceber, o Decidir e o Agir já estiverem claros na conversa, usando as palavras do próprio Aliado.
 - No texto da resposta, diga em uma frase o que você sugeriu e por quê, e que a sugestão aparece logo abaixo. No máximo 3 sugestões por resposta.
 - As notas entre colchetes "Sugestões mostradas no app" no histórico são escritas pelo app, com o que o Aliado aplicou ou ignorou; não escreva essas notas você.
-- Sua resposta tem dois campos: "resposta", com o texto para o Aliado, e "sugestoes", com a lista de sugestões (vazia quando não houver). Em cada sugestão preencha tipo, acao e motivo, e só os campos que se aplicam; os demais ficam nulos. Núcleo: tipo "nucleo" com acao "alterar" (nucleo, nome exato como está no resumo, quadrante e/ou nivel de 1 a 5) ou "adicionar" (nucleo, nome, vinculo, quadrante, nivel). Marca Passos: tipo "marca_passos" com acao "criar" (padrao, tipo_padrao, pilar, perceber, decidir, agir, prazo AAAA-MM-DD, degrau) ou "atualizar" (padrao com o texto exato do item e só os campos que mudam).
+- Sua resposta tem três campos: "leitura" (não aparece para o Aliado), "sugestoes", com a lista de sugestões (vazia quando não houver), e "resposta", com o texto para o Aliado. Em cada sugestão preencha tipo, acao e motivo, e só os campos que se aplicam; os demais ficam nulos. Núcleo: tipo "nucleo" com acao "alterar" (nucleo, nome exato como está no resumo, quadrante e/ou nivel de 1 a 5) ou "adicionar" (nucleo, nome, vinculo, quadrante, nivel). Marca Passos: tipo "marca_passos" com acao "criar" (padrao, tipo_padrao, pilar, perceber, decidir, agir, prazo AAAA-MM-DD, degrau) ou "atualizar" (padrao com o texto exato do item e só os campos que mudam).
 Quando a pessoa trouxer risco grave à vida ou crise séria, interrompa esse ritmo e oriente com cuidado a procurar apoio profissional/CVV 188. De vez em quando, não sempre, feche reforçando: "Aqui você pode mais."`;
 
 let chat=[]; // populado em runAppInit(), depois do login/hidratação da nuvem
@@ -1657,6 +1658,7 @@ async function sendChat(e){
     const resposta={role:'assistant',content:texto};
     if(sugestoes.length) resposta.sugestoes=sugestoes;
     if(formatoInvalido) resposta.sugestaoInvalida=true;
+    resposta.modo=data.modo||(Array.isArray(data.sugestoes)?'estruturado':'texto'); // só a marca, para diagnóstico
     chat.push(resposta);
   }catch(err){
     chat.push({role:'assistant',content:'⚠️ Erro ao contatar o Coach IA: '+err.message+'\n\nTente novamente em instantes.'});

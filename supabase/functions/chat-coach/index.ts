@@ -45,9 +45,14 @@ const CAMPOS_SUGESTAO: Record<string, unknown> = {
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["resposta", "sugestoes"],
+  // A ordem importa: o modelo escreve primeiro a leitura, depois as sugestões e por
+  // último a resposta, então compara o relato com o mapa antes de conversar.
+  required: ["leitura", "sugestoes", "resposta"],
   properties: {
-    resposta: { type: "string", description: "Texto da resposta ao Aliado, em prosa." },
+    leitura: {
+      type: "string",
+      description: "Uma ou duas frases, não mostradas ao Aliado: compare o que ele acabou de contar com o que está no resumo das ferramentas (padrão e nível das pessoas citadas, itens do Marca Passos) e diga se algo deveria mudar.",
+    },
     sugestoes: {
       type: "array",
       description: "Mudanças propostas no Núcleo Emocional ou no Marca Passos, que o Aliado aplica com um clique. Lista vazia quando não houver.",
@@ -58,6 +63,7 @@ const SCHEMA = {
         properties: CAMPOS_SUGESTAO,
       },
     },
+    resposta: { type: "string", description: "Texto da resposta ao Aliado, em prosa. Se houver sugestões, diga em uma frase o que sugeriu e que aparece logo abaixo." },
   },
 };
 
@@ -192,7 +198,8 @@ Deno.serve(async (req) => {
       { onConflict: "user_id,day" },
     );
 
-    return json(sugestoes === undefined ? { reply } : { reply, sugestoes });
+    // modo: "estruturado" quando o formato foi aceito; "texto" quando não houve ou caiu no plano B
+    return json(sugestoes === undefined ? { reply, modo: "texto" } : { reply, sugestoes, modo: "estruturado" });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }
