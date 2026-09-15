@@ -1584,19 +1584,22 @@ Ferramentas do protocolo — o Aliado preenche as ferramentas no app antes de co
 - Se houver um item em FOCO do Marca Passos, o contexto inicial já foi feito na ferramenta: vá direto a afinar o Perceber, o Decidir e o Agir desse item (isso vale mesmo antes das 2-3 trocas pedidas acima), ainda com uma pergunta por vez.
 - Se o assunto pede uma ferramenta que aparece como "ainda não preenchido", sugira que ele registre ali primeiro (por exemplo, a pessoa no Núcleo Emocional ou o padrão no Marca Passos), para a próxima conversa já partir da resposta dele.
 
-Sugestões que viram botão no app — você nunca altera nada sozinho; o Aliado decide com um clique em Aplicar ou Ignorar:
-- Você pode propor mudanças no Núcleo Emocional e no Marca Passos. No texto da resposta, explique a sugestão em prosa, com o porquê, e diga que ela aparece logo abaixo para ele aplicar ou ignorar.
-- Só sugira mudar o padrão de uma pessoa depois que o Aliado tiver contado o que ela faz quando as coisas dão errado ou quando se sente ferida. Sem esse relato, pergunte antes de sugerir. Nunca proponha remover pessoas.
+Sugestões que viram botão no app — o Aliado decide com um clique em Aplicar ou Ignorar, então você pode propor mudanças no Núcleo Emocional e no Marca Passos:
+- Nunca diga que não consegue alterar o Dashboard, o mapa ou o Marca Passos. Você propõe e o próprio app mostra o botão para ele aplicar.
+- Quando o Aliado contar o que uma pessoa do mapa faz quando é contrariada, quando as coisas dão errado ou quando se sente ferida, e isso apontar um padrão ou nível diferente do que está no mapa, inclua a sugestão NA MESMA resposta. O cartão não conta como "passo prático": ele vale mesmo antes das 2-3 trocas pedidas acima, e sua pergunta pode vir junto.
+- Sem esse relato, pergunte antes de sugerir mudança de padrão. Nunca proponha remover pessoas.
+- Se a pessoa aparece nos dois núcleos, escolha o núcleo que o relato descreve: interno é quando ela interfere no Aliado; externo é quando o Aliado interfere nela.
 - Proponha criar ou atualizar um item do Marca Passos quando o Perceber, o Decidir e o Agir já estiverem claros na conversa, usando as palavras do próprio Aliado.
-- No máximo 3 sugestões por resposta, e só quando fizer sentido: a maioria das respostas não tem nenhuma.
+- No texto, diga em uma frase o que você sugeriu e por quê, e que a sugestão aparece logo abaixo. No máximo 3 sugestões por resposta.
 - As notas entre colchetes "Sugestões mostradas no app" no histórico são escritas pelo app, com o que o Aliado aplicou ou ignorou; não escreva essas notas você.
-- Formato: no fim da resposta, depois do texto, escreva o bloco abaixo (ele não aparece para o Aliado; o app transforma em cartões). Use só estes objetos e só os campos que se aplicam:
+- Formato obrigatório: depois do texto, escreva a linha [[SUGESTOES]], depois uma lista JSON válida (aspas duplas, sem comentários, sem crases), e por fim a linha [[/SUGESTOES]]. O bloco não aparece para o Aliado. Exemplo com os quatro tipos aceitos:
 [[SUGESTOES]]
-[{"tipo":"nucleo","acao":"alterar","nucleo":"interno ou externo","nome":"nome exato como está no mapa","quadrante":"Vítima Natural, Vítima Intencional, Vingador ou Narcisista","nivel":1 a 5,"motivo":"frase curta"},
-{"tipo":"nucleo","acao":"adicionar","nucleo":"interno ou externo","nome":"...","vinculo":"...","quadrante":"...","nivel":1 a 5,"motivo":"..."},
-{"tipo":"marca_passos","acao":"criar","padrao":"...","tipo_padrao":"Acontecimento, Comportamento ou Relacionamento","pilar":"Geral, Financeiro, Saúde ou Relacionamento","perceber":"...","decidir":"...","agir":"...","prazo":"AAAA-MM-DD ou vazio","degrau":"Reclamar/Justificar, Questionar ou Propor/Aplicar","motivo":"..."},
-{"tipo":"marca_passos","acao":"atualizar","padrao":"nome exato do item existente","perceber":"...","decidir":"...","agir":"...","prazo":"AAAA-MM-DD","status":"Não iniciado, Em andamento, Concluído ou Travado","motivo":"..."}]
+[{"tipo":"nucleo","acao":"alterar","nucleo":"interno","nome":"Kelson","quadrante":"Vítima Intencional","nivel":2,"motivo":"Quando contrariado, ele se justifica para se isentar."},
+{"tipo":"nucleo","acao":"adicionar","nucleo":"externo","nome":"Tio","vinculo":"família","quadrante":"Narcisista","nivel":3,"motivo":"Você interfere nas decisões dele."},
+{"tipo":"marca_passos","acao":"criar","padrao":"Evitar conflito com o cunhado","tipo_padrao":"Relacionamento","pilar":"Relacionamento","perceber":"Cedo para não brigar","decidir":"Dizer não ao empréstimo","agir":"Conversar no sábado","prazo":"2026-09-27","degrau":"Questionar","motivo":"Você trouxe isso duas vezes."},
+{"tipo":"marca_passos","acao":"atualizar","padrao":"Procrastinar a conversa com meu sócio","agir":"Mandar a pauta na sexta","prazo":"2026-09-25","status":"Em andamento","motivo":"Prazo mais curto."}]
 [[/SUGESTOES]]
+Valores aceitos: nucleo = interno ou externo; quadrante = Vítima Natural, Vítima Intencional, Vingador ou Narcisista; nivel = número de 1 a 5; tipo_padrao = Acontecimento, Comportamento ou Relacionamento; pilar = Geral, Financeiro, Saúde ou Relacionamento; degrau = Reclamar/Justificar, Questionar ou Propor/Aplicar; status = Não iniciado, Em andamento, Concluído ou Travado; prazo = AAAA-MM-DD. Em "nome" e em "padrao" de atualizar, use o texto exato que está no resumo. Inclua só os campos que se aplicam.
 Quando a pessoa trouxer risco grave à vida ou crise séria, interrompa esse ritmo e oriente com cuidado a procurar apoio profissional/CVV 188. De vez em quando, não sempre, feche reforçando: "Aqui você pode mais."`;
 
 let chat=[]; // populado em runAppInit(), depois do login/hidratação da nuvem
@@ -1608,6 +1611,11 @@ function renderChat(){
   chat.forEach((m,mi)=>{
     const d=document.createElement('div'); d.className='msg '+(m.role==='user'?'user':'bot'); d.textContent=m.content; log.appendChild(d);
     if(m.role==='assistant' && Array.isArray(m.sugestoes) && m.sugestoes.length) log.appendChild(renderSugestoes(m.sugestoes,mi));
+    if(m.role==='assistant' && m.sugestaoInvalida){
+      const aviso=document.createElement('div'); aviso.className='sug-list';
+      aviso.innerHTML='<div class="sug off"><div class="sug-no">O Coach tentou sugerir uma mudança, mas ela veio num formato que o app não entendeu. Peça para ele sugerir de novo.</div></div>';
+      log.appendChild(aviso);
+    }
   });
   log.scrollTop=log.scrollHeight;
 }
@@ -1648,9 +1656,10 @@ async function sendChat(e){
   typing.innerHTML='Coach digitando <span class="dot">•</span><span class="dot">•</span><span class="dot">•</span>';
   log.appendChild(typing); log.scrollTop=log.scrollHeight;
   try{
-    const {texto,sugestoes}=extrairSugestoes(await callCoach());
+    const {texto,sugestoes,formatoInvalido}=extrairSugestoes(await callCoach());
     const resposta={role:'assistant',content:texto};
     if(sugestoes.length) resposta.sugestoes=sugestoes;
+    if(formatoInvalido) resposta.sugestaoInvalida=true;
     chat.push(resposta);
   }catch(err){
     chat.push({role:'assistant',content:'⚠️ Erro ao contatar o Coach IA: '+err.message+'\n\nTente novamente em instantes.'});
@@ -1767,15 +1776,38 @@ function nivelValido(n){ n=Number(n); return Number.isInteger(n) && n>=1 && n<=5
 function dataValida(s){ return /^\d{4}-\d{2}-\d{2}$/.test(String(s||'')); }
 function sugKicker(s){ return s.tipo==='nucleo' ? (s.nucleo==='externo'?'Núcleo externo':'Núcleo interno') : 'Marca Passos'; }
 
+/* O modelo às vezes escreve "núcleo", "nível" ou "marca passos": normaliza
+   antes de validar. */
+function normalizarSugestao(s){
+  if(!s || typeof s!=='object') return null;
+  const c=Object.assign({},s);
+  if(c.nivel===undefined && c['nível']!==undefined) c.nivel=c['nível'];
+  if(c.nucleo===undefined && c['núcleo']!==undefined) c.nucleo=c['núcleo'];
+  const tipo=norm(c.tipo).replace(/[\s-]+/g,'_');
+  if(tipo!=='nucleo' && tipo!=='marca_passos') return null;
+  c.tipo=tipo;
+  c.acao=norm(c.acao);
+  c.nucleo=norm(c.nucleo)==='externo'?'externo':'interno';
+  c.estado='pendente';
+  return c;
+}
 function extrairSugestoes(reply){
-  const m=String(reply).match(SUG_RE);
-  if(!m) return {texto:reply, sugestoes:[]};
-  const texto=String(reply).replace(SUG_RE,'').trim()||'(sem resposta)';
-  let lista;
-  try{ lista=JSON.parse(m[1].trim()); }catch(_){ return {texto, sugestoes:[]}; }
-  if(!Array.isArray(lista)) lista=[lista];
-  const sugestoes=lista.filter(s=>s && typeof s==='object' && (s.tipo==='nucleo'||s.tipo==='marca_passos'))
-    .slice(0,SUG_MAX).map(s=>Object.assign({},s,{estado:'pendente'}));
+  const bruto=String(reply);
+  const m=bruto.match(SUG_RE);
+  if(!m) return {texto:bruto, sugestoes:[]};
+  const texto=bruto.replace(SUG_RE,'').trim()||'(sem resposta)';
+  let corpo=m[1].replace(/```(?:json)?/gi,'').trim();
+  const ini=corpo.search(/[\[{]/), fim=Math.max(corpo.lastIndexOf(']'),corpo.lastIndexOf('}'));
+  if(ini>=0 && fim>ini) corpo=corpo.slice(ini,fim+1);
+  let lista=null;
+  for(const tentativa of [corpo, corpo.replace(/,\s*([\]}])/g,'$1')]){
+    try{ lista=JSON.parse(tentativa); break; }catch(_){}
+  }
+  const sugestoes=lista===null ? [] : (Array.isArray(lista)?lista:[lista]).map(normalizarSugestao).filter(Boolean).slice(0,SUG_MAX);
+  if(!sugestoes.length){
+    console.warn('Sugestão do Coach num formato que o app não entendeu:', m[1]);
+    return {texto, sugestoes:[], formatoInvalido:true};
+  }
   return {texto, sugestoes};
 }
 
