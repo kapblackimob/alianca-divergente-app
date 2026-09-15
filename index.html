@@ -1063,9 +1063,20 @@ function removeNucleo(id){
 const TEIA_TIPO_COLOR={Acontecimento:'#2F6F6A', Comportamento:'#8A8AA3', Relacionamento:'#C0392B'};
 function loadTeia(){ return JSON.parse(cloudLS.getItem('ad_teia')||'[]'); }
 function saveTeia(d){ cloudLS.setItem('ad_teia', JSON.stringify(d)); }
+function quebrarRotulo(texto,max){
+  const linhas=[''];
+  for(const palavra of String(texto).split(/\s+/)){
+    const atual=linhas[linhas.length-1];
+    if(!atual) linhas[linhas.length-1]=palavra;
+    else if((atual+' '+palavra).length<=max) linhas[linhas.length-1]=atual+' '+palavra;
+    else linhas.push(palavra);
+  }
+  if(linhas.length>2) linhas.splice(1,linhas.length-1,linhas.slice(1).join(' '));
+  return linhas.map(l=>l.length>max ? l.slice(0,max-1)+'…' : l);
+}
 function renderTeiaSvg(){
   const data=loadTeia();
-  const cx=190,cy=190,R=150;
+  const cx=190,cy=190,R=128;
   const n=data.length;
   const pts=data.map((ev,i)=>({ev, angle:n?i*(360/n):0, p:polar(cx,cy,R,n?i*(360/n):0)}));
   let svg='';
@@ -1083,9 +1094,12 @@ function renderTeiaSvg(){
   svg+='<text x="'+cx+'" y="'+cy+'" font-size="8.5" font-weight="bold" fill="#fff" text-anchor="middle" dominant-baseline="middle">VONTADE</text>';
   pts.forEach(pt=>{
     const color=pt.ev.iluminado?'#C9A24B':(TEIA_TIPO_COLOR[pt.ev.tipo]||'#8A8AA3');
-    const lp=polar(cx,cy,R+16,pt.angle);
     svg+='<circle cx="'+pt.p.x+'" cy="'+pt.p.y+'" r="9" fill="'+color+'" stroke="#fff" stroke-width="1.5"><title>'+escapeHtml(pt.ev.texto)+'</title></circle>';
-    svg+='<text x="'+lp.x+'" y="'+lp.y+'" font-size="8.5" fill="#23233D" text-anchor="middle">'+escapeHtml(pt.ev.texto.slice(0,14))+'</text>';
+    // rótulo em até 2 linhas curtas, centralizado no ponto (acima dele na metade de cima), para não cortar na borda
+    const linhas=quebrarRotulo(pt.ev.texto,16);
+    const y0=Math.sin(pt.angle*Math.PI/180)<-0.3 ? Number(pt.p.y)-15-(linhas.length-1)*10 : Number(pt.p.y)+21;
+    svg+='<text x="'+pt.p.x+'" y="'+y0+'" font-size="8.5" fill="#23233D" text-anchor="middle">'
+      +linhas.map((l,k)=>'<tspan x="'+pt.p.x+'" dy="'+(k?10:0)+'">'+escapeHtml(l)+'</tspan>').join('')+'</text>';
   });
   if(n===0){ svg+='<text x="'+cx+'" y="'+(cy+55)+'" font-size="11" fill="#6B6B85" text-anchor="middle">Adicione um acontecimento para iluminar a teia</text>'; }
   document.getElementById('teiaSvg').innerHTML=svg;
