@@ -1658,7 +1658,7 @@ async function sendChat(e){
     const data=await callCoach();
     // servidor novo devolve as sugestões estruturadas; o bloco no texto fica como reserva
     const {texto,sugestoes,formatoInvalido}=Array.isArray(data.sugestoes)
-      ? {texto:data.reply||'(sem resposta)', sugestoes:data.sugestoes.map(normalizarSugestao).filter(Boolean).slice(0,SUG_MAX)}
+      ? {texto:String(data.reply||'(sem resposta)').replace(CONTROLE,''), sugestoes:data.sugestoes.map(normalizarSugestao).filter(Boolean).slice(0,SUG_MAX)}
       : extrairSugestoes(data.reply||'(sem resposta)');
     const resposta={role:'assistant',content:texto};
     if(sugestoes.length) resposta.sugestoes=sugestoes;
@@ -1677,7 +1677,8 @@ async function sendChat(e){
    tudo de novo. Cada campo e cada lista têm teto, para o resumo não crescer
    junto com o uso. */
 const HIST_MAX=10; // mensagens recentes enviadas à IA; o resumo carrega o resto
-function cut(s,n){ s=String(s||'').replace(/\s+/g,' ').trim(); return s.length>n ? s.slice(0,n-1)+'…' : s; }
+const CONTROLE=/[\x00-\x08\x0B\x0C\x0E-\x1F]/g; // caracteres de controle que às vezes vêm da IA
+function cut(s,n){ s=String(s||'').replace(CONTROLE,'').replace(/\s+/g,' ').trim(); return s.length>n ? s.slice(0,n-1)+'…' : s; }
 function toolsContext(){
   const lines=[], vazias=[];
   const today=new Date().toISOString().slice(0,10);
@@ -1772,7 +1773,7 @@ const PDA_TIPOS=['Acontecimento','Comportamento','Relacionamento'];
 const PDA_PILARES=['Geral','Financeiro','Saúde','Relacionamento'];
 const PDA_DEGRAUS=['Reclamar/Justificar','Questionar','Propor/Aplicar'];
 const PDA_STATUS=['Não iniciado','Em andamento','Concluído','Travado'];
-function norm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim().toLowerCase(); }
+function norm(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toLowerCase(); }
 function escolher(valor,lista){ return lista.find(x=>norm(x)===norm(valor))||null; }
 function quadKey(v){ return QUAD[v] ? v : (Object.keys(QUAD).find(k=>norm(QUAD[k].label)===norm(v))||null); }
 function quadLabel(k){ return (QUAD[k]||{}).label||k; }

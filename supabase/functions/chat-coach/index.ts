@@ -67,6 +67,14 @@ const SCHEMA = {
   },
 };
 
+// Remove caracteres de controle (menos quebra de linha e tab) de todo texto vindo da IA.
+function limparTexto(v: unknown): unknown {
+  if (typeof v === "string") return v.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+  if (Array.isArray(v)) return v.map(limparTexto);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, limparTexto(x)]));
+  return v;
+}
+
 type Chamada = { ok: true; text: string } | { ok: false; status: number; error: string };
 
 async function chamarOpenAI(key: string, system: string, messages: unknown[], structured: boolean): Promise<Chamada> {
@@ -175,7 +183,9 @@ Deno.serve(async (req) => {
       resultado = await chamar(key, system, messages, false);
     } else if (resultado.ok && structured === true) {
       try {
-        const parsed = JSON.parse(resultado.text);
+        // o gpt-4o às vezes quebra o escape de letra acentuada: "í" (\u00ed) sai como \u0000 seguido de "ed"
+        const reparado = resultado.text.replace(/\\u0000([0-9a-fA-F]{2})/g, "\\u00$1");
+        const parsed = limparTexto(JSON.parse(reparado)) as { resposta?: unknown; sugestoes?: unknown };
         reply = String(parsed.resposta ?? "").trim();
         sugestoes = Array.isArray(parsed.sugestoes) ? parsed.sugestoes : [];
       } catch (_) {
@@ -191,7 +201,7 @@ Deno.serve(async (req) => {
       return json({ error: "Erro ao contatar a IA: " + resultado.error }, 502);
     }
     if (!reply) reply = sugestoes === undefined ? resultado.text : "";
-    reply = reply || "(sem resposta)";
+    reply = String(limparTexto(reply)) || "(sem resposta)";
 
     await admin.from("chat_usage").upsert(
       { user_id: userId, day: today, count: currentCount + 1 },
