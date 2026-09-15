@@ -1596,9 +1596,10 @@ Sugestões que viram botão no app — o Aliado decide com um clique em Aplicar 
 - Sem esse relato, pergunte antes de sugerir mudança de padrão. Nunca proponha remover pessoas.
 - Se a pessoa aparece nos dois núcleos, escolha o núcleo que o relato descreve: interno é quando ela interfere no Aliado; externo é quando o Aliado interfere nela.
 - Proponha criar ou atualizar um item do Marca Passos quando o Perceber, o Decidir e o Agir já estiverem claros na conversa, usando as palavras do próprio Aliado.
+- Teia dos Acontecimentos: quando o Aliado contar algo que aconteceu (um fato, não um sentimento solto) ligado a uma pessoa, e isso ainda não estiver na Teia, proponha registrar o acontecimento em poucas palavras, com o relacionamento, a ponta solta (o que ficou por resolver) e o tipo. Quando ele contar que já agiu sobre um acontecimento que aparece no resumo como "ainda não iluminada", proponha iluminar esse acontecimento. Nunca proponha iluminar sem o relato de uma ação concreta.
 - No texto da resposta, diga em uma frase o que você sugeriu e por quê, e que a sugestão aparece logo abaixo. No máximo 3 sugestões por resposta.
 - As notas entre colchetes "Sugestões mostradas no app" no histórico são escritas pelo app, com o que o Aliado aplicou ou ignorou; não escreva essas notas você.
-- Sua resposta tem três campos: "leitura" (não aparece para o Aliado), "sugestoes", com a lista de sugestões (vazia quando não houver), e "resposta", com o texto para o Aliado. Em cada sugestão preencha tipo, acao e motivo, e só os campos que se aplicam; os demais ficam nulos. Núcleo: tipo "nucleo" com acao "alterar" (nucleo, nome exato como está no resumo, quadrante e/ou nivel de 1 a 5) ou "adicionar" (nucleo, nome, vinculo, quadrante, nivel). Marca Passos: tipo "marca_passos" com acao "criar" (padrao, tipo_padrao, pilar, perceber, decidir, agir, prazo AAAA-MM-DD, degrau) ou "atualizar" (padrao com o texto exato do item e só os campos que mudam).
+- Sua resposta tem três campos: "leitura" (não aparece para o Aliado), "sugestoes", com a lista de sugestões (vazia quando não houver), e "resposta", com o texto para o Aliado. Em cada sugestão preencha tipo, acao e motivo, e só os campos que se aplicam; os demais ficam nulos. Núcleo: tipo "nucleo" com acao "alterar" (nucleo, nome exato como está no resumo, quadrante e/ou nivel de 1 a 5) ou "adicionar" (nucleo, nome, vinculo, quadrante, nivel). Marca Passos: tipo "marca_passos" com acao "criar" (padrao, tipo_padrao, pilar, perceber, decidir, agir, prazo AAAA-MM-DD, degrau) ou "atualizar" (padrao com o texto exato do item e só os campos que mudam). Teia: tipo "teia" com acao "registrar" (texto, relacionamento, ponta_solta, tipo_evento) ou "iluminar" (texto exato do acontecimento como está no resumo).
 Quando a pessoa trouxer risco grave à vida ou crise séria, interrompa esse ritmo e oriente com cuidado a procurar apoio profissional/CVV 188. De vez em quando, não sempre, feche reforçando: "Aqui você pode mais."`;
 
 let chat=[]; // populado em runAppInit(), depois do login/hidratação da nuvem
@@ -1779,7 +1780,11 @@ function quadKey(v){ return QUAD[v] ? v : (Object.keys(QUAD).find(k=>norm(QUAD[k
 function quadLabel(k){ return (QUAD[k]||{}).label||k; }
 function nivelValido(n){ n=Number(n); return Number.isInteger(n) && n>=1 && n<=5; }
 function dataValida(s){ return /^\d{4}-\d{2}-\d{2}$/.test(String(s||'')); }
-function sugKicker(s){ return s.tipo==='nucleo' ? (s.nucleo==='externo'?'Núcleo externo':'Núcleo interno') : 'Marca Passos'; }
+function sugKicker(s){
+  if(s.tipo==='nucleo') return s.nucleo==='externo'?'Núcleo externo':'Núcleo interno';
+  return s.tipo==='teia' ? 'Teia dos Acontecimentos' : 'Marca Passos';
+}
+const TEIA_TIPOS=['Acontecimento','Comportamento','Relacionamento'];
 
 /* O modelo às vezes escreve "núcleo", "nível" ou "marca passos": normaliza
    antes de validar. */
@@ -1789,7 +1794,7 @@ function normalizarSugestao(s){
   if(c.nivel===undefined && c['nível']!==undefined) c.nivel=c['nível'];
   if(c.nucleo===undefined && c['núcleo']!==undefined) c.nucleo=c['núcleo'];
   const tipo=norm(c.tipo).replace(/[\s-]+/g,'_');
-  if(tipo!=='nucleo' && tipo!=='marca_passos') return null;
+  if(tipo!=='nucleo' && tipo!=='marca_passos' && tipo!=='teia') return null;
   c.tipo=tipo;
   c.acao=norm(c.acao);
   c.nucleo=norm(c.nucleo)==='externo'?'externo':'interno';
@@ -1841,6 +1846,33 @@ function descreverSugestao(s){
     return {kicker, titulo:pessoa.nome+': '+antes+' → '+depois, aplicar(){
       const d=loadNucleo(); const p=d[nucleo].find(x=>x.id===pessoa.id);
       if(p){ p.quad=novoQuad; p.nivel=novoNivel; saveNucleo(d); }
+    }};
+  }
+
+  if(s.tipo==='teia'){
+    const teia=loadTeia();
+    // o resumo corta textos longos com "…": compara pelo começo do texto
+    const chave=norm(String(s.texto||'').replace(/…$/,''));
+    const achar=()=>chave ? teia.find(e=>norm(e.texto)===chave) || teia.find(e=>norm(e.texto).startsWith(chave)) : null;
+    if(s.acao==='iluminar'){
+      const ev=achar();
+      const titulo='Iluminar "'+cut(ev?ev.texto:s.texto,80)+'"';
+      if(!ev) return {kicker, titulo, bloqueio:'Não encontrei esse acontecimento na Teia.'};
+      if(ev.iluminado) return {kicker, titulo, bloqueio:'Esse acontecimento já está iluminado.'};
+      return {kicker, titulo, detalhe:(ev.relacionamento?'Ligado a '+ev.relacionamento:'')+(ev.pontaSolta?(ev.relacionamento?' · ':'')+'Ponta solta: '+ev.pontaSolta:''), aplicar(){
+        const d=loadTeia(); const x=d.find(y=>y.id===ev.id);
+        if(x){ x.iluminado=true; saveTeia(d); }
+      }};
+    }
+    if(!s.texto) return {kicker, titulo:'Novo acontecimento', bloqueio:'Sugestão incompleta: faltou o acontecimento.'};
+    const item={texto:cut(s.texto,100), relacionamento:cut(s.relacionamento,40), pontaSolta:cut(s.ponta_solta,100),
+      tipo:escolher(s.tipo_evento,TEIA_TIPOS)||'Acontecimento', iluminado:false};
+    const titulo='Registrar "'+item.texto+'" ('+item.tipo+')';
+    const detalhe=[item.relacionamento&&'Ligado a '+item.relacionamento, item.pontaSolta&&'Ponta solta: '+item.pontaSolta].filter(Boolean).join(' · ');
+    if(achar() && norm(achar().texto)===chave) return {kicker, titulo, detalhe, bloqueio:'Esse acontecimento já está na Teia.'};
+    return {kicker, titulo, detalhe, aplicar(){
+      const d=loadTeia();
+      if(!d.some(x=>norm(x.texto)===norm(item.texto))){ d.push(Object.assign({id:Date.now()+'_'+Math.random().toString(36).slice(2,7)},item)); saveTeia(d); }
     }};
   }
 
@@ -1912,7 +1944,9 @@ function decidirSugestao(arg,aplicar){
   if(aplicar){
     desc.aplicar();
     s.estado='aplicada';
-    if(s.tipo==='nucleo') renderNucleo(); else { renderPda(); renderGuardioesList(); }
+    if(s.tipo==='nucleo') renderNucleo();
+    else if(s.tipo==='teia') renderTeia();
+    else { renderPda(); renderGuardioesList(); }
     renderDashSummary();
   } else s.estado='ignorada';
   cloudLS.setItem('ad_chat',JSON.stringify(chat));

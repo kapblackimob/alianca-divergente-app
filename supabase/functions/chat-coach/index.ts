@@ -24,8 +24,8 @@ function json(body: unknown, status = 200) {
 const texto = { type: ["string", "null"] };
 const opcoes = (valores: string[]) => ({ type: ["string", "null"], enum: [...valores, null] });
 const CAMPOS_SUGESTAO: Record<string, unknown> = {
-  tipo: { type: "string", enum: ["nucleo", "marca_passos"] },
-  acao: { type: "string", enum: ["alterar", "adicionar", "criar", "atualizar"] },
+  tipo: { type: "string", enum: ["nucleo", "marca_passos", "teia"] },
+  acao: { type: "string", enum: ["alterar", "adicionar", "criar", "atualizar", "registrar", "iluminar"] },
   nucleo: opcoes(["interno", "externo"]),
   nome: texto,
   vinculo: texto,
@@ -40,6 +40,10 @@ const CAMPOS_SUGESTAO: Record<string, unknown> = {
   prazo: texto,
   degrau: opcoes(["Reclamar/Justificar", "Questionar", "Propor/Aplicar"]),
   status: opcoes(["Não iniciado", "Em andamento", "Concluído", "Travado"]),
+  texto: texto, // Teia: o acontecimento
+  relacionamento: texto,
+  ponta_solta: texto,
+  tipo_evento: opcoes(["Acontecimento", "Comportamento", "Relacionamento"]),
   motivo: { type: "string" },
 };
 const SCHEMA = {
@@ -51,11 +55,11 @@ const SCHEMA = {
   properties: {
     leitura: {
       type: "string",
-      description: "Uma ou duas frases, não mostradas ao Aliado: compare o que ele acabou de contar com o que está no resumo das ferramentas (padrão e nível das pessoas citadas, itens do Marca Passos) e diga se algo deveria mudar.",
+      description: "Uma ou duas frases, não mostradas ao Aliado: compare o que ele acabou de contar com o que está no resumo das ferramentas (padrão e nível das pessoas citadas, itens do Marca Passos, acontecimentos da Teia) e diga se algo deveria mudar.",
     },
     sugestoes: {
       type: "array",
-      description: "Mudanças propostas no Núcleo Emocional ou no Marca Passos, que o Aliado aplica com um clique. Lista vazia quando não houver.",
+      description: "Mudanças propostas no Núcleo Emocional, no Marca Passos ou na Teia dos Acontecimentos, que o Aliado aplica com um clique. Lista vazia quando não houver.",
       items: {
         type: "object",
         additionalProperties: false,
