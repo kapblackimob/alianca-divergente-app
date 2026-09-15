@@ -1658,22 +1658,24 @@ function toolsContext(){
   if(foco) lines.unshift('FOCO desta conversa (item do Marca Passos que o Aliado trouxe): '+pdaTxt(foco));
   if(pda.length){
     const abertos=pda.filter(x=>x.status!=='Concluído' && x!==foco);
-    if(abertos.length) lines.push('Marca Passos em aberto: '+abertos.slice(0,4).map(pdaTxt).join(' | '));
+    if(abertos.length) lines.push('Marca Passos em aberto ('+abertos.length+(abertos.length>4?', mostrando 4':'')+'): '+abertos.slice(0,4).map(pdaTxt).join(' | '));
     const concluidos=pda.filter(x=>x.status==='Concluído').length;
     if(concluidos) lines.push('Marca Passos concluídos: '+concluidos+'.');
   } else vazias.push('Marca Passos');
 
   const nu=loadNucleo();
-  const pessoas=lista=>lista.slice().sort((a,b)=>a.nivel-b.nivel).slice(0,5)
+  const NUCLEO_MAX=8;
+  const pessoas=lista=>lista.length+(lista.length===1?' pessoa':' pessoas')+(lista.length>NUCLEO_MAX?', mostrando as '+NUCLEO_MAX+' de maior interferência':'')+': '
+    +lista.slice().sort((a,b)=>a.nivel-b.nivel).slice(0,NUCLEO_MAX)
     .map(x=>cut(x.nome,30)+' ('+(x.vinculo?cut(x.vinculo,20)+', ':'')+((QUAD[x.quad]||{}).label||x.quad)+', nível '+x.nivel+')').join('; ');
-  if(nu.interno.length) lines.push('Núcleo interno, quem interfere nele (nível 1 = interfere muito): '+pessoas(nu.interno)+'.');
-  if(nu.externo.length) lines.push('Núcleo externo, em quem ele interfere: '+pessoas(nu.externo)+'.');
+  if(nu.interno.length) lines.push('Núcleo interno, quem interfere nele (nível 1 = interfere muito), '+pessoas(nu.interno)+'.');
+  if(nu.externo.length) lines.push('Núcleo externo, em quem ele interfere, '+pessoas(nu.externo)+'.');
   if(!nu.interno.length && !nu.externo.length) vazias.push('Núcleo Emocional');
 
   const teia=loadTeia();
   if(teia.length){
     const ordem=teia.filter(e=>!e.iluminado).concat(teia.filter(e=>e.iluminado)).slice(0,4);
-    lines.push('Teia dos Acontecimentos: '+ordem.map(e=>'"'+cut(e.texto,80)+'"'
+    lines.push('Teia dos Acontecimentos ('+teia.length+(teia.length>4?', mostrando 4':'')+'): '+ordem.map(e=>'"'+cut(e.texto,80)+'"'
       +(e.relacionamento?' ligado a '+cut(e.relacionamento,30):'')
       +(e.pontaSolta?', ponta solta: '+cut(e.pontaSolta,80):'')
       +(e.iluminado?' (iluminada)':' (ainda não iluminada)')).join(' | ')+'.');
