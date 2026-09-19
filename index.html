@@ -111,6 +111,20 @@
   .mapa-conceito p{margin:5px 0 6px;color:#445}
   .mapa-conceito a{font-size:12.5px;color:var(--navy);text-decoration:none}
   .mapa-conceito a:hover{text-decoration:underline}
+  .diario-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .diario-nav input[type=date]{border:1px solid var(--line);border-radius:8px;padding:7px;font:inherit;font-size:13.5px}
+  .mapa-ex select{border:1px solid var(--line);border-radius:7px;padding:6px;font:inherit;font-size:13.5px;background:#fff;max-width:100%}
+  .painel-n{font-size:15px;margin-bottom:10px}
+  .d7wrap{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .d7{font-size:11.5px;border:1px solid var(--line);border-radius:7px;padding:5px 7px;color:#889;background:#fff}
+  .d7.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  table.padroes{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.padroes th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:#889;padding:4px 6px}
+  table.padroes td{padding:6px;border-top:1px solid var(--line)}
+  .cam{font-size:11.5px;border-radius:999px;padding:3px 8px;white-space:nowrap;background:#eee;color:#667}
+  .cam.c1{background:#fdf1d8;color:#8a6a1a}
+  .cam.c2{background:#e6efdc;color:#4a6a2a}
+  .cam.c3{background:#dbeade;color:#1e6b3a}
   .mapa-glos{margin-bottom:14px}
   .mapa-glos summary{cursor:pointer;font-size:13.5px;color:var(--navy);margin-bottom:10px}
   .mapa-salvo{font-size:12px;color:#7a8;min-height:16px;margin-bottom:8px}
@@ -618,7 +632,7 @@ function go(v){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
   window.scrollTo(0,0);
   if(v==='coach') refreshCoachStatus();
-  if(v==='mapa') renderMapa();
+  if(v==='mapa'){ if(mapaAtual===0) mapaAtual=-2; renderMapa(); }
   if(v==='dash'){ renderDashSummary(); renderNucleo(); renderTeia(); renderTermoHist(); }
   if(v==='pp'){ renderPlanoPerfeito(); }
   if(v==='acao'){ renderAcao(); }
@@ -1591,7 +1605,7 @@ async function carregarTrilha(){
     throw new Error(msg);
   }
   if(data && data.error) throw new Error(data.error);
-  mapaBase={trilha:data.trilha, conceitos:data.conceitos||[], etapas:data.etapas||[]};
+  mapaBase={trilha:data.trilha, conceitos:data.conceitos||[], etapas:data.etapas||[], diario:data.diario||null};
   mapaTrilha=mapaBase.trilha;
   try{ window.localStorage.setItem('ad_mapa_base', JSON.stringify(mapaBase)); }catch(_){}
   return mapaTrilha;
@@ -1605,8 +1619,9 @@ async function renderMapa(){
 }
 function renderMapaTabs(){
   if(!mapaTrilha) return;
+  const hoje='<button data-action="mapaIr" data-arg="-2" class="'+(mapaAtual===-2?'on':'')+'">Hoje<small>ciclo de 24 horas · '+diarioSequencia()+' dia(s)</small></button>';
   const glossario='<button data-action="mapaIr" data-arg="-1" class="'+(mapaAtual===-1?'on':'')+'">Conceitos<small>engrenagem e glossário</small></button>';
-  document.getElementById('mapaTabs').innerHTML=glossario+mapaTrilha.map((e,i)=>
+  document.getElementById('mapaTabs').innerHTML=hoje+glossario+mapaTrilha.map((e,i)=>
     '<button data-action="mapaIr" data-arg="'+i+'" class="'+(i===mapaAtual?'on':'')+'">Dia '+e.dia
     +'<small>'+escapeHtml(cut(e.titulo,34))+' · '+mapaProgresso(e)+'</small></button>').join('');
 }
@@ -1645,6 +1660,7 @@ function renderGlossarioLista(q){
   alvo.innerHTML=h;
 }
 function renderMapaEstacao(){
+  if(mapaAtual===-2) return renderHoje();
   if(mapaAtual===-1) return renderGlossario();
   const est=mapaTrilha[mapaAtual], resp=loadMapa()[est.id]||{};
   let h='<div class="mapa-tese">'+escapeHtml(est.tese)+'</div>';
@@ -1705,8 +1721,153 @@ function mapaGravar(el){
   const marca=document.getElementById('mapaSalvo');
   if(marca){ marca.textContent='salvando…'; clearTimeout(mapaTimer); mapaTimer=setTimeout(()=>{ marca.textContent='salvo'; renderMapaTabs(); },700); }
 }
-document.addEventListener('input',e=>{ if(e.target.closest('#mapaBody')) mapaGravar(e.target); });
-document.addEventListener('change',e=>{ if(e.target.closest('#mapaBody')) mapaGravar(e.target); });
+function mapaEntrada(alvo){
+  if(!alvo.closest('#mapaBody')) return;
+  if(alvo.closest('[data-diario]')) diarioGravar(alvo); else mapaGravar(alvo);
+}
+document.addEventListener('input',e=>mapaEntrada(e.target));
+document.addEventListener('change',e=>mapaEntrada(e.target));
+/* ------------------------------------------------------------
+   HOJE — o ciclo de 24 horas
+   Um registro por dia, guardado em ad_diario. A configuração dos campos vem
+   do servidor junto com a trilha, então o texto do método não fica no app.
+------------------------------------------------------------ */
+let diarioData=hojeISO();
+function hojeISO(){ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function loadDiario(){ try{ return JSON.parse(cloudLS.getItem('ad_diario')||'{}'); }catch(_){ return {}; } }
+function diaBR(iso){ const p=String(iso||'').split('-'); return p.length===3? p[2]+'/'+p[1] : iso; }
+function diarioDoDia(iso){ const d=loadDiario()[iso]||{}; return {manha:d.manha||{}, registros:d.registros||[], noite:d.noite||{}}; }
+function diarioTemAlgo(d){
+  if(!d) return false;
+  const campos=Object.values(d.manha||{}).concat(Object.values(d.noite||{})).some(v=>String(v||'').trim());
+  const linhas=(d.registros||[]).some(l=>l.some(x=>String(x||'').trim()));
+  return campos||linhas;
+}
+function diarioSequencia(){
+  const dados=loadDiario(); let n=0; const d=new Date();
+  for(let i=0;i<400;i++){
+    const iso=new Date(d.getTime()-i*86400000-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    if(diarioTemAlgo(dados[iso])) n++;
+    else if(i>0) break; // o dia de hoje ainda pode estar vazio sem quebrar a sequência
+  }
+  return n;
+}
+/* Agrupa os registros por padrão e guarda a camada mais alta que apareceu. */
+function diarioPadroes(){
+  const dados=loadDiario(), mapa={};
+  Object.keys(dados).forEach(iso=>{
+    (dados[iso].registros||[]).forEach(l=>{
+      const padrao=String(l[4]||'').trim(); if(!padrao) return;
+      const camada=Number(String(l[5]||'').trim().charAt(0))||0;
+      const k=norm(padrao);
+      if(!mapa[k]) mapa[k]={nome:padrao, vezes:0, camada:0, ultimo:iso};
+      mapa[k].vezes++; mapa[k].camada=Math.max(mapa[k].camada,camada);
+      if(iso>mapa[k].ultimo) mapa[k].ultimo=iso;
+    });
+  });
+  return Object.values(mapa).sort((a,b)=>b.camada-a.camada||b.vezes-a.vezes);
+}
+function renderHoje(){
+  const cfg=(mapaBase&&mapaBase.diario)||null, body=document.getElementById('mapaBody');
+  if(!cfg){ body.innerHTML='<p class="note">O check-in diário ainda não chegou do servidor. Recarregue a página.</p>'; return; }
+  const d=diarioDoDia(diarioData);
+  const campo=(c,valor,grupo)=> '<label>'+escapeHtml(c.rotulo)+'</label>'+(c.opcoes
+      ? '<select data-campo="'+c.id+'"><option value=""></option>'+c.opcoes.map(o=>'<option'+(valor===o?' selected':'')+'>'+escapeHtml(o)+'</option>').join('')+'</select>'
+      : '<textarea rows="2" data-campo="'+c.id+'">'+escapeHtml(valor||'')+'</textarea>');
+  let h='<div class="mapa-tese">'+escapeHtml(cfg.tese)+'</div>'
+    +'<div class="diario-nav"><button class="ghost" data-action="diarioIr" data-arg="-1">← dia anterior</button>'
+    +'<input type="date" id="diarioDataInput" value="'+diarioData+'" max="'+hojeISO()+'">'
+    +'<button class="ghost" data-action="diarioIr" data-arg="1">dia seguinte →</button>'
+    +'<button class="ghost" data-action="diarioIr" data-arg="0">hoje</button>'
+    +'<span class="mapa-salvo" id="mapaSalvo"></span></div>';
+  h+='<div class="mapa-ex" data-diario="manha"><h3>De manhã</h3>'+cfg.manha.map(c=>campo(c,d.manha[c.id])).join('')+'</div>';
+  h+='<div class="mapa-ex" data-diario="registro"><h3>'+escapeHtml(cfg.registro.titulo)+'</h3>'
+    +'<p class="instr">'+escapeHtml(cfg.registro.instrucao)+'</p><div class="mapa-scroll"><table><thead><tr>'
+    +cfg.registro.colunas.map(c=>'<th>'+escapeHtml(c.rotulo)+'</th>').join('')+'</tr></thead><tbody>';
+  for(let r=0;r<cfg.registro.linhas;r++){
+    h+='<tr>'+cfg.registro.colunas.map((c,ci)=>{
+      const cel=(d.registros[r]||[])[ci]||'';
+      return '<td>'+(c.tipo==='opcoes'
+        ? '<select data-col="'+ci+'"><option value=""></option>'+c.opcoes.map(o=>'<option'+(cel===o?' selected':'')+'>'+escapeHtml(o)+'</option>').join('')+'</select>'
+        : '<input type="text" data-col="'+ci+'" value="'+escapeHtml(cel)+'">')+'</td>';
+    }).join('')+'</tr>';
+  }
+  h+='</tbody></table></div></div>';
+  h+='<div class="mapa-ex" data-diario="noite"><h3>À noite</h3>'+cfg.noite.map(c=>campo(c,d.noite[c.id])).join('')+'</div>';
+  h+=painelHoje();
+  body.innerHTML=h;
+  const inp=document.getElementById('diarioDataInput');
+  if(inp) inp.addEventListener('change',()=>{ diarioData=inp.value||hojeISO(); renderHoje(); });
+}
+function painelHoje(){
+  const dados=loadDiario(), seq=diarioSequencia(), padroes=diarioPadroes();
+  const dias=[]; const hoje=new Date();
+  for(let i=6;i>=0;i--){
+    const iso=new Date(hoje.getTime()-i*86400000-hoje.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    dias.push('<span class="d7 '+(diarioTemAlgo(dados[iso])?'on':'')+'" title="'+iso+'">'+diaBR(iso)+'</span>');
+  }
+  const total=Object.keys(dados).filter(k=>diarioTemAlgo(dados[k])).length;
+  let h='<div class="mapa-ex"><h3>Onde eu estou</h3>'
+    +'<p class="instr">A sequência conta os dias seguidos com registro. Cada padrão sobe de camada quando você reage diferente: primeiro com dificuldade, depois com facilidade.</p>'
+    +'<div class="painel-n"><b>'+seq+'</b> '+(seq===1?'dia seguido':'dias seguidos')+' · <b>'+total+'</b> '+(total===1?'dia registrado':'dias registrados')+'</div>'
+    +'<div class="d7wrap">'+dias.join('')+'</div>';
+  if(padroes.length){
+    h+='<table class="padroes"><thead><tr><th>Padrão</th><th>Camada</th><th>Vezes</th><th>Último</th></tr></thead><tbody>'
+      +padroes.slice(0,12).map(p=>'<tr><td>'+escapeHtml(cut(p.nome,60))+'</td><td>'
+        +'<span class="cam c'+p.camada+'">'+(p.camada?['','só vi','com dificuldade','com facilidade'][p.camada]:'sem camada')+'</span></td>'
+        +'<td>'+p.vezes+'</td><td>'+diaBR(p.ultimo)+'</td></tr>').join('')+'</tbody></table>';
+  }else{
+    h+='<p class="muted">Ainda sem padrão nomeado. Preencha a coluna "Padrão que isso revela" nos registros.</p>';
+  }
+  return h+'</div>';
+}
+function diarioIr(passo){
+  passo=Number(passo);
+  if(passo===0){ diarioData=hojeISO(); }
+  else{
+    const d=new Date(diarioData+'T12:00:00');
+    d.setDate(d.getDate()+passo);
+    const iso=d.toISOString().slice(0,10);
+    if(iso<=hojeISO()) diarioData=iso;
+  }
+  renderHoje();
+}
+function diarioGravar(el){
+  const caixa=el.closest('[data-diario]'); if(!caixa) return;
+  const grupo=caixa.dataset.diario, dados=loadDiario();
+  const dia=dados[diarioData]||(dados[diarioData]={});
+  if(grupo==='registro'){
+    const linhas=[]; caixa.querySelectorAll('tbody tr').forEach(tr=>{
+      const linha=[]; tr.querySelectorAll('[data-col]').forEach(i=>linha.push(i.value.trim()));
+      linhas.push(linha);
+    });
+    dia.registros=linhas;
+  }else{
+    const v={}; caixa.querySelectorAll('[data-campo]').forEach(i=>{ v[i.dataset.campo]=i.value.trim(); });
+    dia[grupo]=v;
+  }
+  cloudLS.setItem('ad_diario',JSON.stringify(dados));
+  const marca=document.getElementById('mapaSalvo');
+  if(marca){ marca.textContent='salvando…'; clearTimeout(mapaTimer); mapaTimer=setTimeout(()=>{ marca.textContent='salvo'; renderMapaTabs(); },700); }
+}
+/* Resumo do dia para o Coach: o de hoje, a sequência e os padrões em curso. */
+function diarioContexto(){
+  const cfg=(mapaBase&&mapaBase.diario)||null; if(!cfg) return '';
+  const d=diarioDoDia(hojeISO()), linhas=[];
+  const rot=(lista,id)=>{ const c=lista.find(x=>x.id===id); return c?cut(c.rotulo,44):id; };
+  cfg.manha.forEach(c=>{ if(String(d.manha[c.id]||'').trim()) linhas.push('Manhã — '+rot(cfg.manha,c.id)+': '+cut(d.manha[c.id],120)); });
+  const regs=(d.registros||[]).filter(l=>l.some(x=>String(x||'').trim()));
+  regs.slice(0,4).forEach(l=>linhas.push('Registro: movimento '+cut(l[1]||'-',60)+'; aconteceu '+cut(l[2]||'-',80)+'; reação '+cut(l[3]||'-',80)+(l[4]?'; padrão '+cut(l[4],40):'')+(l[5]?' ('+l[5]+')':'')));
+  cfg.noite.forEach(c=>{ if(String(d.noite[c.id]||'').trim()) linhas.push('Noite — '+rot(cfg.noite,c.id)+': '+cut(d.noite[c.id],120)); });
+  const padroes=diarioPadroes().filter(p=>p.camada>0).slice(0,5)
+    .map(p=>cut(p.nome,40)+' (camada '+p.camada+', '+p.vezes+'x)');
+  const seq=diarioSequencia();
+  if(!linhas.length && !padroes.length && !seq) return '';
+  let txt='\n\nCICLO DE 24 HORAS (hoje, '+hojeISO()+'; '+seq+' dia(s) seguidos com registro)';
+  if(linhas.length) txt+='\n'+linhas.join('\n');
+  if(padroes.length) txt+='\nPadrões em curso: '+padroes.join(' | ');
+  return cut(txt,1600);
+}
 /* Resumo do Mapa para o Coach: respostas curtas, com teto de tamanho. */
 function mapaContexto(){
   if(!mapaBase) mapaBase=loadMapaBase();
@@ -1759,7 +1920,7 @@ async function saveCfg(){
   }catch(err){ alert('Erro ao salvar provedor: '+err.message); }
 }
 const ALL_DATA_KEYS=['ad_diag','ad_profile','ad_ceno','ad_nucleo','ad_teia','ad_termo_hist','ad_termo_last',
-  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat','ad_mapa'];
+  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat','ad_mapa','ad_diario'];
 function wipeAll(){
   if(confirm('Apagar TODOS os dados salvos (diagnóstico, cenários, núcleo emocional, teia, plano de ação, plano perfeito e chat)? Esta ação não pode ser desfeita.')){
     ALL_DATA_KEYS.forEach(k=>cloudLS.removeItem(k));
@@ -2002,7 +2163,7 @@ function toolsContext(){
   if(vazias.length) lines.push('Ainda não preenchido no app: '+vazias.join(', ')+'.');
   lines.push('Hoje: '+today+'.');
   const texto=lines.join('\n').replace(/\.{2,}/g,'.').replace(/\.;/g,';').replace(/…\./g,'…');
-  return '\n\n[Resumo das ferramentas do protocolo, com as palavras do próprio Aliado]\n'+texto+mapaContexto();
+  return '\n\n[Resumo das ferramentas do protocolo, com as palavras do próprio Aliado]\n'+texto+diarioContexto()+mapaContexto();
 }
 async function callCoach(){
   let recentes=chat.slice(-HIST_MAX);
@@ -2226,7 +2387,7 @@ function notaSugestoes(m){
    WIRING — delegação de eventos (funciona em qualquer navegador/painel,
    sem depender de handlers onclick embutidos no HTML)
 ============================================================ */
-var ACTIONS={ go:function(a){go(a)}, computeDiag:computeDiag, resetDiag:resetDiag, mapaIr:mapaIr,
+var ACTIONS={ go:function(a){go(a)}, computeDiag:computeDiag, resetDiag:resetDiag, mapaIr:mapaIr, diarioIr:diarioIr,
   sendDiagToCoach:sendDiagToCoach, sendPdaToCoach:sendPdaToCoach, clearCoachFocus:clearCoachFocus,
   aplicarSugestao:aplicarSugestao, ignorarSugestao:ignorarSugestao,
   print:function(){window.print()}, nextCen:nextCen,
@@ -2283,7 +2444,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* Chaves que vivem na nuvem (por usuário). */
 const CLOUD_KEYS = new Set(['ad_diag','ad_profile','ad_ceno','ad_nucleo','ad_teia','ad_termo_hist','ad_termo_last',
-  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat','ad_mapa']);
+  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat','ad_mapa','ad_diario']);
 
 const cloudLS = {
   _cache: {},
