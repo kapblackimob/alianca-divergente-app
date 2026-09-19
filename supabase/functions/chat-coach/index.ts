@@ -27,8 +27,8 @@ function json(body: unknown, status = 200) {
 const texto = { type: ["string", "null"] };
 const opcoes = (valores: string[]) => ({ type: ["string", "null"], enum: [...valores, null] });
 const CAMPOS_SUGESTAO: Record<string, unknown> = {
-  tipo: { type: "string", enum: ["nucleo", "marca_passos", "teia"] },
-  acao: { type: "string", enum: ["alterar", "adicionar", "criar", "atualizar", "registrar", "iluminar"] },
+  tipo: { type: "string", enum: ["nucleo", "marca_passos", "teia", "diario"] },
+  acao: { type: "string", enum: ["alterar", "adicionar", "criar", "atualizar", "registrar", "iluminar", "planejar"] },
   nucleo: opcoes(["interno", "externo"]),
   nome: texto,
   vinculo: texto,
@@ -47,6 +47,11 @@ const CAMPOS_SUGESTAO: Record<string, unknown> = {
   relacionamento: texto,
   ponta_solta: texto,
   tipo_evento: opcoes(["Acontecimento", "Comportamento", "Relacionamento"]),
+  movimento: texto, // diário: o que o Aliado fez
+  aconteceu: texto, // diário: o que a vida respondeu
+  reacao: texto, // diário: como ele reagiu (é aqui que o padrão quebra)
+  camada: opcoes(["1", "2", "3"]), // 1 só viu, 2 fez com dificuldade, 3 fez com facilidade
+  passo: texto, // diário: o passo possível do dia
   motivo: { type: "string" },
 };
 const SCHEMA = {

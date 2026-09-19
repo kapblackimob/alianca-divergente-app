@@ -1585,6 +1585,8 @@ function mapaVazio(v){
   if(v && typeof v==='object') return !Object.values(v).some(x=>String(x||'').trim());
   return !String(v||'').trim();
 }
+/* O exemplo do campo vira placeholder, para o Aliado ver o que entra ali. */
+function dica(c){ return c && c.exemplo ? ' placeholder="'+escapeHtml(c.exemplo)+'"' : ''; }
 function mapaProgresso(est){
   const d=loadMapa()[est.id]||{}; let feitos=0;
   est.exercicios.forEach(ex=>{ if(!mapaVazio(d[ex.id])) feitos++; });
@@ -1684,7 +1686,7 @@ function renderMapaEstacao(){
       h+=ex.opcoes.map(o=>'<label class="op"><input type="radio" name="'+est.id+'-'+ex.id+'" value="'+escapeHtml(o)+'"'
         +(v===o?' checked':'')+'> '+escapeHtml(o)+'</label>').join('');
     }else if(ex.tipo==='campos'){
-      h+=ex.campos.map(c=>'<label>'+escapeHtml(c.rotulo)+'</label><textarea rows="2" data-campo="'+c.id+'">'
+      h+=ex.campos.map(c=>'<label>'+escapeHtml(c.rotulo)+'</label><textarea rows="2" data-campo="'+c.id+'"'+dica(c)+'>'
         +escapeHtml(((v||{})[c.id])||'')+'</textarea>').join('');
     }else{
       h+='<div class="mapa-scroll"><table><thead><tr>'+ex.colunas.map(c=>'<th>'+escapeHtml(c.rotulo)+'</th>').join('')+'</tr></thead><tbody>';
@@ -1693,7 +1695,7 @@ function renderMapaEstacao(){
           const cel=((v||[])[r]||[])[ci];
           return '<td>'+(c.tipo==='check'
             ? '<input type="checkbox" data-col="'+ci+'"'+(cel===true?' checked':'')+'>'
-            : '<input type="text" data-col="'+ci+'" value="'+escapeHtml(cel||'')+'">')+'</td>';
+            : '<input type="text" data-col="'+ci+'"'+dica(c)+' value="'+escapeHtml(cel||'')+'">')+'</td>';
         }).join('')+'</tr>';
       }
       h+='</tbody></table></div>';
@@ -1773,7 +1775,7 @@ function renderHoje(){
   const d=diarioDoDia(diarioData);
   const campo=(c,valor,grupo)=> '<label>'+escapeHtml(c.rotulo)+'</label>'+(c.opcoes
       ? '<select data-campo="'+c.id+'"><option value=""></option>'+c.opcoes.map(o=>'<option'+(valor===o?' selected':'')+'>'+escapeHtml(o)+'</option>').join('')+'</select>'
-      : '<textarea rows="2" data-campo="'+c.id+'">'+escapeHtml(valor||'')+'</textarea>');
+      : '<textarea rows="2" data-campo="'+c.id+'"'+dica(c)+'>'+escapeHtml(valor||'')+'</textarea>');
   let h='<div class="mapa-tese">'+escapeHtml(cfg.tese)+'</div>'
     +'<div class="diario-nav"><button class="ghost" data-action="diarioIr" data-arg="-1">← dia anterior</button>'
     +'<input type="date" id="diarioDataInput" value="'+diarioData+'" max="'+hojeISO()+'">'
@@ -1784,12 +1786,13 @@ function renderHoje(){
   h+='<div class="mapa-ex" data-diario="registro"><h3>'+escapeHtml(cfg.registro.titulo)+'</h3>'
     +'<p class="instr">'+escapeHtml(cfg.registro.instrucao)+'</p><div class="mapa-scroll"><table><thead><tr>'
     +cfg.registro.colunas.map(c=>'<th>'+escapeHtml(c.rotulo)+'</th>').join('')+'</tr></thead><tbody>';
-  for(let r=0;r<cfg.registro.linhas;r++){
+  const totalLinhas=Math.max(cfg.registro.linhas,(d.registros||[]).length);
+  for(let r=0;r<totalLinhas;r++){
     h+='<tr>'+cfg.registro.colunas.map((c,ci)=>{
       const cel=(d.registros[r]||[])[ci]||'';
       return '<td>'+(c.tipo==='opcoes'
         ? '<select data-col="'+ci+'"><option value=""></option>'+c.opcoes.map(o=>'<option'+(cel===o?' selected':'')+'>'+escapeHtml(o)+'</option>').join('')+'</select>'
-        : '<input type="text" data-col="'+ci+'" value="'+escapeHtml(cel)+'">')+'</td>';
+        : '<input type="text" data-col="'+ci+'"'+dica(c)+' value="'+escapeHtml(cel)+'">')+'</td>';
     }).join('')+'</tr>';
   }
   h+='</tbody></table></div></div>';
@@ -2202,7 +2205,8 @@ function nivelValido(n){ n=Number(n); return Number.isInteger(n) && n>=1 && n<=5
 function dataValida(s){ return /^\d{4}-\d{2}-\d{2}$/.test(String(s||'')); }
 function sugKicker(s){
   if(s.tipo==='nucleo') return s.nucleo==='externo'?'Núcleo externo':'Núcleo interno';
-  return s.tipo==='teia' ? 'Teia dos Acontecimentos' : 'Marca Passos';
+  if(s.tipo==='teia') return 'Teia dos Acontecimentos';
+  return s.tipo==='diario' ? 'Hoje · ciclo de 24 horas' : 'Marca Passos';
 }
 const TEIA_TIPOS=['Acontecimento','Comportamento','Relacionamento'];
 
@@ -2214,7 +2218,7 @@ function normalizarSugestao(s){
   if(c.nivel===undefined && c['nível']!==undefined) c.nivel=c['nível'];
   if(c.nucleo===undefined && c['núcleo']!==undefined) c.nucleo=c['núcleo'];
   const tipo=norm(c.tipo).replace(/[\s-]+/g,'_');
-  if(tipo!=='nucleo' && tipo!=='marca_passos' && tipo!=='teia') return null;
+  if(tipo!=='nucleo' && tipo!=='marca_passos' && tipo!=='teia' && tipo!=='diario') return null;
   c.tipo=tipo;
   c.acao=norm(c.acao);
   c.nucleo=norm(c.nucleo)==='externo'?'externo':'interno';
@@ -2296,6 +2300,42 @@ function descreverSugestao(s){
     }};
   }
 
+  if(s.tipo==='diario'){
+    const hoje=hojeISO();
+    const cols=((mapaBase&&mapaBase.diario&&mapaBase.diario.registro)||{}).colunas||[];
+    const opcoesCamada=(cols[5]||{}).opcoes||[];
+    const camada=(()=>{ const n=String(s.camada||'').trim().charAt(0); return opcoesCamada.find(o=>o.charAt(0)===n)||''; })();
+    if(s.acao==='planejar'){
+      const passo=cut(s.passo,160), mov=cut(s.movimento,160);
+      const titulo='Anotar o plano de hoje';
+      if(!passo && !mov) return {kicker, titulo, bloqueio:'Sugestão incompleta: faltou o passo ou o movimento.'};
+      const detalhe=[passo&&'Passo: '+passo, mov&&'Movimento: '+mov].filter(Boolean).join(' · ');
+      const manha=(diarioDoDia(hoje).manha)||{};
+      if((!passo||norm(manha.passo)===norm(passo)) && (!mov||norm(manha.movimento)===norm(mov)))
+        return {kicker, titulo, detalhe, bloqueio:'Isso já está anotado no dia de hoje.'};
+      return {kicker, titulo, detalhe, aplicar(){
+        const d=loadDiario(); const dia=d[hoje]||(d[hoje]={}); const m=dia.manha||(dia.manha={});
+        if(passo) m.passo=passo;
+        if(mov) m.movimento=mov;
+        cloudLS.setItem('ad_diario',JSON.stringify(d));
+      }};
+    }
+    const mov=cut(s.movimento,120), aconteceu=cut(s.aconteceu,160), reacao=cut(s.reacao,160), padrao=cut(s.padrao,80);
+    const titulo='Registrar no dia: '+cut(aconteceu||mov||'acontecimento',70);
+    if(!aconteceu && !mov) return {kicker, titulo, bloqueio:'Sugestão incompleta: faltou o que aconteceu.'};
+    const detalhe=[mov&&'Movimento: '+mov, reacao&&'Reação: '+reacao, padrao&&'Padrão: '+padrao, camada&&'Camada '+camada].filter(Boolean).join(' · ');
+    const jaTem=(diarioDoDia(hoje).registros||[]).some(l=>aconteceu && norm(l[2])===norm(aconteceu));
+    if(jaTem) return {kicker, titulo, detalhe, bloqueio:'Esse acontecimento já está registrado hoje.'};
+    return {kicker, titulo, detalhe, aplicar(){
+      const d=loadDiario(); const dia=d[hoje]||(d[hoje]={}); const regs=dia.registros||(dia.registros=[]);
+      const agora=new Date(); const hora=String(agora.getHours()).padStart(2,'0')+':'+String(agora.getMinutes()).padStart(2,'0');
+      const linha=[hora,mov,aconteceu,reacao,padrao,camada];
+      const vazia=regs.findIndex(l=>!l.some(x=>String(x||'').trim()));
+      if(vazia>=0) regs[vazia]=linha; else regs.push(linha);
+      cloudLS.setItem('ad_diario',JSON.stringify(d));
+    }};
+  }
+
   const pda=loadPda();
   if(s.acao==='atualizar'){
     const it=pda.find(x=>norm(x.padrao)===norm(s.padrao));
@@ -2366,6 +2406,7 @@ function decidirSugestao(arg,aplicar){
     s.estado='aplicada';
     if(s.tipo==='nucleo') renderNucleo();
     else if(s.tipo==='teia') renderTeia();
+    else if(s.tipo==='diario'){ if(mapaTrilha && mapaAtual===-2) renderHoje(); }
     else { renderPda(); renderGuardioesList(); }
     renderDashSummary();
   } else s.estado='ignorada';
