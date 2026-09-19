@@ -4,6 +4,9 @@ const DAILY_LIMIT = 30;
 const CLAUDE_MODEL = "claude-sonnet-5";
 const OPENAI_MODEL = "gpt-4o";
 const SETTINGS_KEY = "coach_provider";
+const MAPA_KEY = "coach_mapa"; // base de estudo do Mapa do Impossível (só para o administrador)
+const MAPA_CORTES = 12; // trechos de vídeo enviados por mensagem, escolhidos pelo assunto
+const MAPA_MAX = 16000; // teto de caracteres do bloco, para o prompt não crescer sem controle
 const MAX_TOKENS = 900;
 const MAX_TOKENS_STRUCTURED = 1200; // texto + sugestões em JSON
 
@@ -77,6 +80,50 @@ function limparTexto(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(limparTexto);
   if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, limparTexto(x)]));
   return v;
+}
+
+/* ============================================================
+   MAPA DO IMPOSSÍVEL (base de estudo pessoal do administrador)
+   O conteúdo fica numa linha de app_settings, nunca no código, e só entra no
+   prompt quando quem conversa é o dono do app (ADMIN_EMAIL). Cada mensagem
+   leva os conceitos inteiros e só os trechos de vídeo ligados ao que o Aliado
+   acabou de escrever.
+============================================================ */
+type Corte = { dia: number; ini: string; tema: string; titulo: string; ideia?: string; resumo?: string; url: string };
+type Conceito = { nome: string; sub?: string; def: string; link: string };
+type Etapa = { n: number; nome: string; pergunta: string; resumo?: string };
+type Mapa = { instrucoes?: string; etapas?: Etapa[]; conceitos?: Conceito[]; cortes?: Corte[] };
+
+const PARADAS = new Set(["para", "pela", "pelo", "como", "mais", "meu", "minha", "isso", "esse", "essa", "quando", "porque", "estou", "tenho", "fazer", "muito", "sobre", "cada", "todo", "toda", "aqui", "agora", "ainda", "mesmo", "pode", "quer", "vou", "nao", "sim", "gente", "coisa", "coisas", "vida"]);
+export function palavras(s: string): string[] {
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .split(/[^a-z0-9]+/).filter((p) => p.length > 3 && !PARADAS.has(p));
+}
+export function blocoMapa(mapa: Mapa, ultima: string): string {
+  const conceitos = mapa.conceitos ?? [], cortes = mapa.cortes ?? [], etapas = mapa.etapas ?? [];
+  if (!conceitos.length && !cortes.length) return "";
+  const termos = new Set(palavras(ultima));
+  const nota = (c: Corte) =>
+    palavras([c.titulo, c.ideia, c.resumo, c.tema].join(" ")).reduce((n, p) => n + (termos.has(p) ? 1 : 0), 0);
+  let escolhidos = cortes.map((c) => ({ c, n: nota(c) })).filter((x) => x.n > 0)
+    .sort((a, b) => b.n - a.n || a.c.dia - b.c.dia).slice(0, MAPA_CORTES).map((x) => x.c);
+  if (!escolhidos.length) {
+    // nada casou: manda um trecho de cada assunto, para o Coach ter de onde partir
+    const vistos = new Set<string>();
+    escolhidos = cortes.filter((c) => !vistos.has(c.tema) && vistos.add(c.tema)).slice(0, 8);
+  }
+  const linhas = [
+    "",
+    "=== MAPA DO IMPOSSÍVEL — semana do dinheiro (material de estudo do Aliado) ===",
+    mapa.instrucoes ?? "",
+    etapas.length ? "\nA engrenagem, em 7 passos:" : "",
+    ...etapas.map((e) => `${e.n}. ${e.nome} — ${e.pergunta}`),
+    conceitos.length ? "\nConceitos do método:" : "",
+    ...conceitos.map((c) => `- ${c.nome}${c.sub ? ` (${c.sub})` : ""}: ${c.def} [${c.link}]`),
+    escolhidos.length ? "\nTrechos de vídeo ligados ao que ele acabou de escrever:" : "",
+    ...escolhidos.map((c) => `- Dia ${c.dia}, ${c.ini} — ${c.titulo}${c.ideia ? `: ${c.ideia}` : ""} [${c.url}]`),
+  ].filter(Boolean);
+  return linhas.join("\n").slice(0, MAPA_MAX);
 }
 
 type Chamada = { ok: true; text: string } | { ok: false; status: number; error: string };
@@ -173,6 +220,22 @@ Deno.serve(async (req) => {
       return json({ error: "Limite diário de mensagens do Coach IA atingido. Tente novamente amanhã." }, 429);
     }
 
+    // Base do Mapa do Impossível: só para o dono do app, e só se a linha existir
+    let systemFinal = String(system ?? "");
+    let comMapa = false;
+    const adminEmail = Deno.env.get("ADMIN_EMAIL");
+    if (adminEmail && userData.user.email === adminEmail) {
+      const { data: mapaRow } = await admin
+        .from("app_settings")
+        .select("value")
+        .eq("key", MAPA_KEY)
+        .maybeSingle();
+      const ultima = [...(messages as { role: string; content: string }[])].reverse()
+        .find((m) => m.role === "user")?.content ?? "";
+      const bloco = mapaRow?.value ? blocoMapa(mapaRow.value as Mapa, ultima) : "";
+      if (bloco) { systemFinal += bloco; comMapa = true; }
+    }
+
     const key = Deno.env.get(useOpenAI ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY");
     if (!key) return json({ error: "Coach IA (" + (useOpenAI ? "OpenAI" : "Claude") + ") não configurado no servidor." }, 500);
     const chamar = useOpenAI ? chamarOpenAI : chamarClaude;
@@ -180,11 +243,11 @@ Deno.serve(async (req) => {
     let reply = "";
     let sugestoes: unknown[] | undefined;
 
-    let resultado = await chamar(key, system, messages, structured === true);
+    let resultado = await chamar(key, systemFinal, messages, structured === true);
     if (!resultado.ok && structured === true && resultado.status === 400) {
       // o provedor recusou o formato estruturado: responde em texto para o Coach não parar
       console.error("Formato estruturado recusado, voltando para texto:", resultado.error);
-      resultado = await chamar(key, system, messages, false);
+      resultado = await chamar(key, systemFinal, messages, false);
     } else if (resultado.ok && structured === true) {
       try {
         // o gpt-4o às vezes quebra o escape de letra acentuada: "í" (\u00ed) sai como \u0000 seguido de "ed"
@@ -213,7 +276,8 @@ Deno.serve(async (req) => {
     );
 
     // modo: "estruturado" quando o formato foi aceito; "texto" quando não houve ou caiu no plano B
-    return json(sugestoes === undefined ? { reply, modo: "texto" } : { reply, sugestoes, modo: "estruturado" });
+    const resposta = sugestoes === undefined ? { reply, modo: "texto" } : { reply, sugestoes, modo: "estruturado" };
+    return json(comMapa ? { ...resposta, mapa: true } : resposta);
   } catch (e) {
     return json({ error: String(e) }, 500);
   }

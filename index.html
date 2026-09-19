@@ -82,6 +82,8 @@
   .msg{max-width:82%;padding:11px 14px;border-radius:14px;font-size:14.5px;white-space:pre-wrap;word-wrap:break-word}
   .msg.user{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:4px}
   .msg.bot{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+  .msg.bot a{color:var(--navy);text-decoration:underline;text-underline-offset:2px}
+  .msg-tag{display:block;margin-top:8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
   .msg.sys{align-self:center;background:#fbf6e8;border:1px solid var(--gold);color:var(--ink);font-size:13px;text-align:center}
   .sug-list{align-self:flex-start;max-width:82%;display:flex;flex-direction:column;gap:8px;margin-top:-4px}
   .sug{background:#fbf6e8;border:1px solid var(--gold);border-radius:12px;padding:10px 12px;font-size:13.5px}
@@ -1618,13 +1620,25 @@ Sugestões que viram botão no app — o Aliado decide com um clique em Aplicar 
 Quando a pessoa trouxer risco grave à vida ou crise séria, interrompa esse ritmo e oriente com cuidado a procurar apoio profissional/CVV 188. De vez em quando, não sempre, feche reforçando: "Aqui você pode mais."`;
 
 let chat=[]; // populado em runAppInit(), depois do login/hidratação da nuvem
+/* Resposta do Coach com link clicável. O texto é escapado antes; só as URLs
+   viram âncora, e link de vídeo aparece com rótulo em vez do endereço cru. */
+const LINK_RE=/https?:\/\/[^\s<>"')\]]+/g;
+function comLinks(texto){
+  return escapeHtml(String(texto||'')).replace(LINK_RE,u=>{
+    const rotulo=/youtu\.be|youtube\.com/.test(u)?'abrir o trecho':u;
+    return '<a href="'+u+'" target="_blank" rel="noopener">'+rotulo+'</a>';
+  });
+}
 function renderChat(){
   const log=document.getElementById('chatlog'); log.innerHTML='';
   if(chat.length===0){
     log.innerHTML='<div class="msg sys">Bem-vindo, Aliado. Eu parto do que você já preencheu nas ferramentas (diagnóstico, Núcleo, Teia, Marca Passos). Descreva uma situação, um padrão que se repete ou uma decisão que você está adiando.</div>';
   }
   chat.forEach((m,mi)=>{
-    const d=document.createElement('div'); d.className='msg '+(m.role==='user'?'user':'bot'); d.textContent=m.content; log.appendChild(d);
+    const d=document.createElement('div'); d.className='msg '+(m.role==='user'?'user':'bot');
+    if(m.role==='assistant'){ d.innerHTML=comLinks(m.content)+(m.mapa?'<span class="msg-tag">com o Mapa do Impossível</span>':''); }
+    else { d.textContent=m.content; }
+    log.appendChild(d);
     if(m.role==='assistant' && Array.isArray(m.sugestoes) && m.sugestoes.length) log.appendChild(renderSugestoes(m.sugestoes,mi));
     if(m.role==='assistant' && m.sugestaoInvalida){
       const aviso=document.createElement('div'); aviso.className='sug-list';
@@ -1680,6 +1694,7 @@ async function sendChat(e){
     if(sugestoes.length) resposta.sugestoes=sugestoes;
     if(formatoInvalido) resposta.sugestaoInvalida=true;
     resposta.modo=data.modo||(Array.isArray(data.sugestoes)?'estruturado':'texto'); // só a marca, para diagnóstico
+    if(data.mapa) resposta.mapa=true; // o servidor juntou a base do Mapa do Impossível nesta resposta
     chat.push(resposta);
   }catch(err){
     chat.push({role:'assistant',content:'⚠️ Erro ao contatar o Coach IA: '+err.message+'\n\nTente novamente em instantes.'});
