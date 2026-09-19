@@ -101,6 +101,18 @@
   .mapa-ex td input[type=text]{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px;font:inherit;font-size:13.5px}
   .mapa-ex .op{display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:14px}
   .mapa-scroll{overflow-x:auto}
+  .mapa-etapas{margin:0;padding-left:20px;font-size:14px;color:#334}
+  .mapa-etapas li{margin-bottom:5px}
+  .mapa-ex input[type=text]#mapaBusca{width:100%;max-width:420px;border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit;font-size:14px;margin-bottom:12px}
+  .mapa-dia{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin:14px 0 8px}
+  .mapa-conceitos{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+  .mapa-conceito{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;background:#fcfcfa}
+  .mapa-conceito i{color:#778;font-size:12px}
+  .mapa-conceito p{margin:5px 0 6px;color:#445}
+  .mapa-conceito a{font-size:12.5px;color:var(--navy);text-decoration:none}
+  .mapa-conceito a:hover{text-decoration:underline}
+  .mapa-glos{margin-bottom:14px}
+  .mapa-glos summary{cursor:pointer;font-size:13.5px;color:var(--navy);margin-bottom:10px}
   .mapa-salvo{font-size:12px;color:#7a8;min-height:16px;margin-bottom:8px}
   .msg.bot a{color:var(--navy);text-decoration:underline;text-underline-offset:2px}
   .msg-tag{display:block;margin-top:8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
@@ -1542,13 +1554,18 @@ function renderPlanoPerfeito(){
 /* ============================================================
    MAPA DO IMPOSSÍVEL — trilha de 6 estações
    O texto do curso não fica no app: a função mapa-trilha entrega a trilha só
-   para o dono da conta de administrador, e ela é guardada em ad_mapa_trilha.
+   para o dono da conta de administrador, e fica guardada em ad_mapa_base.
    As respostas ficam em ad_mapa, na conta do próprio Aliado, e viram um
    resumo curto dentro do contexto enviado ao Coach.
 ============================================================ */
-let mapaTrilha=null, mapaAtual=0, mapaTimer=null;
+let mapaBase=null, mapaTrilha=null, mapaAtual=0, mapaTimer=null;
 function loadMapa(){ try{ return JSON.parse(cloudLS.getItem('ad_mapa')||'{}'); }catch(_){ return {}; } }
-function loadMapaTrilha(){ try{ return JSON.parse(window.localStorage.getItem('ad_mapa_trilha')||'null'); }catch(_){ return null; } }
+function loadMapaBase(){
+  try{
+    const b=JSON.parse(window.localStorage.getItem('ad_mapa_base')||'null');
+    return (b && Array.isArray(b.trilha) && b.trilha.length) ? b : null;
+  }catch(_){ return null; }
+}
 function mapaVazio(v){
   if(Array.isArray(v)) return !v.some(l=>Array.isArray(l)&&l.some(x=>x===true||(typeof x==='string'&&x.trim())));
   if(v && typeof v==='object') return !Object.values(v).some(x=>String(x||'').trim());
@@ -1563,8 +1580,8 @@ function mapaProgresso(est){
    início do app, para o resumo do Coach ter os rótulos mesmo sem abrir a aba. */
 async function carregarTrilha(){
   if(mapaTrilha) return mapaTrilha;
-  mapaTrilha=loadMapaTrilha();
-  if(mapaTrilha) return mapaTrilha;
+  mapaBase=loadMapaBase();
+  if(mapaBase){ mapaTrilha=mapaBase.trilha; return mapaTrilha; }
   const {data,error}=await sb.functions.invoke('mapa-trilha',{body:{}});
   if(error){
     let msg=error.message||'Erro ao carregar a trilha';
@@ -1574,30 +1591,73 @@ async function carregarTrilha(){
     throw new Error(msg);
   }
   if(data && data.error) throw new Error(data.error);
-  mapaTrilha=data.trilha;
-  window.localStorage.setItem('ad_mapa_trilha', JSON.stringify(mapaTrilha));
+  mapaBase={trilha:data.trilha, conceitos:data.conceitos||[], etapas:data.etapas||[]};
+  mapaTrilha=mapaBase.trilha;
+  try{ window.localStorage.setItem('ad_mapa_base', JSON.stringify(mapaBase)); }catch(_){}
   return mapaTrilha;
 }
 async function renderMapa(){
   const body=document.getElementById('mapaBody');
-  if(!mapaTrilha && !loadMapaTrilha()) body.innerHTML='<p class="muted">Carregando a trilha…</p>';
+  if(!mapaTrilha && !loadMapaBase()) body.innerHTML='<p class="muted">Carregando a trilha…</p>';
   try{ await carregarTrilha(); }
   catch(err){ body.innerHTML='<p class="note">Não consegui carregar a trilha: '+escapeHtml(err.message)+'</p>'; return; }
   renderMapaTabs(); renderMapaEstacao();
 }
 function renderMapaTabs(){
   if(!mapaTrilha) return;
-  document.getElementById('mapaTabs').innerHTML=mapaTrilha.map((e,i)=>
+  const glossario='<button data-action="mapaIr" data-arg="-1" class="'+(mapaAtual===-1?'on':'')+'">Conceitos<small>engrenagem e glossário</small></button>';
+  document.getElementById('mapaTabs').innerHTML=glossario+mapaTrilha.map((e,i)=>
     '<button data-action="mapaIr" data-arg="'+i+'" class="'+(i===mapaAtual?'on':'')+'">Dia '+e.dia
     +'<small>'+escapeHtml(cut(e.titulo,34))+' · '+mapaProgresso(e)+'</small></button>').join('');
 }
-function mapaIr(i){ mapaAtual=Number(i)||0; renderMapaTabs(); renderMapaEstacao(); window.scrollTo(0,0); }
+function mapaIr(i){ mapaAtual=Number(i); if(isNaN(mapaAtual)) mapaAtual=0; renderMapaTabs(); renderMapaEstacao(); window.scrollTo(0,0); }
+/* Engrenagem de 7 passos + os 40 conceitos, agrupados por dia, com busca. */
+function renderGlossario(){
+  const etapas=(mapaBase&&mapaBase.etapas)||[], conceitos=(mapaBase&&mapaBase.conceitos)||[];
+  let h='';
+  if(etapas.length){
+    h+='<div class="mapa-ex"><h3>A engrenagem</h3><p class="instr">Os seis dias giram a mesma roda. Toda vez que travar, ache em que passo você está.</p><ol class="mapa-etapas">'
+      +etapas.map(e=>'<li><b>'+escapeHtml(e.nome)+'</b> — '+escapeHtml(e.pergunta)+'</li>').join('')+'</ol></div>';
+  }
+  h+='<div class="mapa-ex"><h3>Glossário do método</h3>'
+    +'<p class="instr">'+conceitos.length+' conceitos, como as lives definem. Cada um abre o vídeo no minuto em que aparece.</p>'
+    +'<input type="text" id="mapaBusca" placeholder="Buscar conceito (ex.: teto, registro, teia)" autocomplete="off">'
+    +'<div id="mapaGlossario"></div></div>';
+  document.getElementById('mapaBody').innerHTML=h;
+  renderGlossarioLista('');
+  const busca=document.getElementById('mapaBusca');
+  if(busca) busca.addEventListener('input',()=>renderGlossarioLista(busca.value));
+}
+function renderGlossarioLista(q){
+  const conceitos=(mapaBase&&mapaBase.conceitos)||[];
+  const termo=norm(q||'');
+  const achados=conceitos.filter(c=>!termo || norm(c.nome+' '+(c.sub||'')+' '+c['def']).includes(termo));
+  const alvo=document.getElementById('mapaGlossario'); if(!alvo) return;
+  if(!achados.length){ alvo.innerHTML='<p class="muted">Nenhum conceito com esse termo.</p>'; return; }
+  let h='';
+  [1,2,3,4,5,6].forEach(dia=>{
+    const doDia=achados.filter(c=>Number(c.dia)===dia); if(!doDia.length) return;
+    h+='<h4 class="mapa-dia">Dia '+dia+'</h4><div class="mapa-conceitos">'+doDia.map(c=>
+      '<div class="mapa-conceito"><b>'+escapeHtml(c.nome)+'</b>'+(c.sub?' <i>'+escapeHtml(c.sub)+'</i>':'')
+      +'<p>'+escapeHtml(c['def'])+'</p>'
+      +(c.link?'<a href="'+c.link+'" target="_blank" rel="noopener">▶ abrir o trecho</a>':'')+'</div>').join('')+'</div>';
+  });
+  alvo.innerHTML=h;
+}
 function renderMapaEstacao(){
+  if(mapaAtual===-1) return renderGlossario();
   const est=mapaTrilha[mapaAtual], resp=loadMapa()[est.id]||{};
   let h='<div class="mapa-tese">'+escapeHtml(est.tese)+'</div>';
   if(est.cortes && est.cortes.length){
     h+='<div class="mapa-cortes">'+est.cortes.map(c=>'<a href="'+c.url+'" target="_blank" rel="noopener">▶ '
       +escapeHtml(c.ini)+' — '+escapeHtml(cut(c.titulo,48))+'</a>').join('')+'</div>';
+  }
+  const doDia=((mapaBase&&mapaBase.conceitos)||[]).filter(c=>Number(c.dia)===est.dia);
+  if(doDia.length){
+    h+='<details class="mapa-glos"><summary>Conceitos que aparecem neste dia ('+doDia.length+')</summary><div class="mapa-conceitos">'
+      +doDia.map(c=>'<div class="mapa-conceito"><b>'+escapeHtml(c.nome)+'</b>'+(c.sub?' <i>'+escapeHtml(c.sub)+'</i>':'')
+      +'<p>'+escapeHtml(c['def'])+'</p>'+(c.link?'<a href="'+c.link+'" target="_blank" rel="noopener">▶ abrir o trecho</a>':'')+'</div>').join('')
+      +'</div></details>';
   }
   h+='<div class="mapa-salvo" id="mapaSalvo"></div>';
   est.exercicios.forEach(ex=>{
@@ -1649,7 +1709,8 @@ document.addEventListener('input',e=>{ if(e.target.closest('#mapaBody')) mapaGra
 document.addEventListener('change',e=>{ if(e.target.closest('#mapaBody')) mapaGravar(e.target); });
 /* Resumo do Mapa para o Coach: respostas curtas, com teto de tamanho. */
 function mapaContexto(){
-  const trilha=mapaTrilha||loadMapaTrilha(); if(!trilha) return '';
+  if(!mapaBase) mapaBase=loadMapaBase();
+  const trilha=mapaTrilha||(mapaBase&&mapaBase.trilha); if(!trilha) return '';
   const dados=loadMapa(); const linhas=[];
   trilha.forEach(est=>{
     const d=dados[est.id]; if(!d) return;

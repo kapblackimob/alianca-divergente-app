@@ -39,11 +39,13 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
     const { data: row } = await admin.from("app_settings").select("value").eq("key", MAPA_KEY).maybeSingle();
-    const valor = (row?.value ?? {}) as { trilha?: unknown };
+    const valor = (row?.value ?? {}) as { trilha?: unknown; conceitos?: unknown; etapas?: unknown };
     const trilha = Array.isArray(valor.trilha) ? valor.trilha : [];
     if (!trilha.length) return json({ error: "A trilha ainda não foi carregada no banco." }, 404);
+    const conceitos = Array.isArray(valor.conceitos) ? valor.conceitos : [];
+    const etapas = Array.isArray(valor.etapas) ? valor.etapas : [];
 
-    return json({ trilha });
+    return json({ trilha, conceitos, etapas });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }
