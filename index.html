@@ -82,6 +82,26 @@
   .msg{max-width:82%;padding:11px 14px;border-radius:14px;font-size:14.5px;white-space:pre-wrap;word-wrap:break-word}
   .msg.user{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:4px}
   .msg.bot{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+  .mapa-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px}
+  .mapa-tabs button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px;text-align:left;line-height:1.3}
+  .mapa-tabs button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .mapa-tabs button small{display:block;font-size:11px;opacity:.7}
+  .mapa-tese{background:#fbf6e8;border:1px solid var(--gold);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:12px}
+  .mapa-cortes{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+  .mapa-cortes a{font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:6px 10px;text-decoration:none;color:var(--ink);background:#fff}
+  .mapa-cortes a:hover{border-color:var(--gold)}
+  .mapa-ex{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;background:#fff}
+  .mapa-ex h3{margin:0 0 4px;font-size:15.5px}
+  .mapa-ex .instr{font-size:13px;color:#667;margin-bottom:10px}
+  .mapa-ex label{display:block;font-size:13px;margin:8px 0 3px;color:#445}
+  .mapa-ex textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;font-size:14px;resize:vertical}
+  .mapa-ex table{width:100%;border-collapse:collapse;font-size:13.5px}
+  .mapa-ex th{text-align:left;font-size:12px;color:#667;font-weight:600;padding:4px 6px 6px;vertical-align:bottom}
+  .mapa-ex td{padding:3px 4px}
+  .mapa-ex td input[type=text]{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px;font:inherit;font-size:13.5px}
+  .mapa-ex .op{display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:14px}
+  .mapa-scroll{overflow-x:auto}
+  .mapa-salvo{font-size:12px;color:#7a8;min-height:16px;margin-bottom:8px}
   .msg.bot a{color:var(--navy);text-decoration:underline;text-underline-offset:2px}
   .msg-tag{display:block;margin-top:8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
   .msg.sys{align-self:center;background:#fbf6e8;border:1px solid var(--gold);color:var(--ink);font-size:13px;text-align:center}
@@ -190,6 +210,7 @@
     <button data-v="pp">Plano Perfeito</button>
     <button data-v="acao">Plano de Ação</button>
     <button data-v="dash">Dashboard</button>
+    <button data-v="mapa" id="navMapa" style="display:none">Mapa</button>
     <button data-v="coach">Coach IA</button>
     <button data-v="cfg">Config</button>
     <button id="logoutBtn" title="Sair da conta">Sair ↩</button>
@@ -524,6 +545,15 @@
   </div>
 </section>
 
+<!-- MAPA DO IMPOSSÍVEL (trilha pessoal; o conteúdo vem do servidor) -->
+<section id="mapa" class="view">
+  <div class="kicker">Trilha pessoal</div>
+  <h1>Mapa do Impossível</h1>
+  <p class="lead">As seis estações da semana do dinheiro. Cada resposta fica salva na sua conta e entra no resumo que o Coach IA lê antes de responder.</p>
+  <div id="mapaTabs" class="mapa-tabs"></div>
+  <div id="mapaBody"></div>
+</section>
+
 <!-- CONFIG -->
 <section id="cfg" class="view">
   <div class="kicker">Configuração</div>
@@ -576,6 +606,7 @@ function go(v){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
   window.scrollTo(0,0);
   if(v==='coach') refreshCoachStatus();
+  if(v==='mapa') renderMapa();
   if(v==='dash'){ renderDashSummary(); renderNucleo(); renderTeia(); renderTermoHist(); }
   if(v==='pp'){ renderPlanoPerfeito(); }
   if(v==='acao'){ renderAcao(); }
@@ -1509,6 +1540,143 @@ function renderPlanoPerfeito(){
 }
 
 /* ============================================================
+   MAPA DO IMPOSSÍVEL — trilha de 6 estações
+   O texto do curso não fica no app: a função mapa-trilha entrega a trilha só
+   para o dono da conta de administrador, e ela é guardada em ad_mapa_trilha.
+   As respostas ficam em ad_mapa, na conta do próprio Aliado, e viram um
+   resumo curto dentro do contexto enviado ao Coach.
+============================================================ */
+let mapaTrilha=null, mapaAtual=0, mapaTimer=null;
+function loadMapa(){ try{ return JSON.parse(cloudLS.getItem('ad_mapa')||'{}'); }catch(_){ return {}; } }
+function loadMapaTrilha(){ try{ return JSON.parse(window.localStorage.getItem('ad_mapa_trilha')||'null'); }catch(_){ return null; } }
+function mapaVazio(v){
+  if(Array.isArray(v)) return !v.some(l=>Array.isArray(l)&&l.some(x=>x===true||(typeof x==='string'&&x.trim())));
+  if(v && typeof v==='object') return !Object.values(v).some(x=>String(x||'').trim());
+  return !String(v||'').trim();
+}
+function mapaProgresso(est){
+  const d=loadMapa()[est.id]||{}; let feitos=0;
+  est.exercicios.forEach(ex=>{ if(!mapaVazio(d[ex.id])) feitos++; });
+  return feitos+'/'+est.exercicios.length;
+}
+/* Busca a trilha uma vez por sessão e guarda no navegador. Roda também no
+   início do app, para o resumo do Coach ter os rótulos mesmo sem abrir a aba. */
+async function carregarTrilha(){
+  if(mapaTrilha) return mapaTrilha;
+  mapaTrilha=loadMapaTrilha();
+  if(mapaTrilha) return mapaTrilha;
+  const {data,error}=await sb.functions.invoke('mapa-trilha',{body:{}});
+  if(error){
+    let msg=error.message||'Erro ao carregar a trilha';
+    if(error.context && typeof error.context.json==='function'){
+      try{ const b=await error.context.json(); if(b && b.error) msg=b.error; }catch(_){}
+    }
+    throw new Error(msg);
+  }
+  if(data && data.error) throw new Error(data.error);
+  mapaTrilha=data.trilha;
+  window.localStorage.setItem('ad_mapa_trilha', JSON.stringify(mapaTrilha));
+  return mapaTrilha;
+}
+async function renderMapa(){
+  const body=document.getElementById('mapaBody');
+  if(!mapaTrilha && !loadMapaTrilha()) body.innerHTML='<p class="muted">Carregando a trilha…</p>';
+  try{ await carregarTrilha(); }
+  catch(err){ body.innerHTML='<p class="note">Não consegui carregar a trilha: '+escapeHtml(err.message)+'</p>'; return; }
+  renderMapaTabs(); renderMapaEstacao();
+}
+function renderMapaTabs(){
+  if(!mapaTrilha) return;
+  document.getElementById('mapaTabs').innerHTML=mapaTrilha.map((e,i)=>
+    '<button data-action="mapaIr" data-arg="'+i+'" class="'+(i===mapaAtual?'on':'')+'">Dia '+e.dia
+    +'<small>'+escapeHtml(cut(e.titulo,34))+' · '+mapaProgresso(e)+'</small></button>').join('');
+}
+function mapaIr(i){ mapaAtual=Number(i)||0; renderMapaTabs(); renderMapaEstacao(); window.scrollTo(0,0); }
+function renderMapaEstacao(){
+  const est=mapaTrilha[mapaAtual], resp=loadMapa()[est.id]||{};
+  let h='<div class="mapa-tese">'+escapeHtml(est.tese)+'</div>';
+  if(est.cortes && est.cortes.length){
+    h+='<div class="mapa-cortes">'+est.cortes.map(c=>'<a href="'+c.url+'" target="_blank" rel="noopener">▶ '
+      +escapeHtml(c.ini)+' — '+escapeHtml(cut(c.titulo,48))+'</a>').join('')+'</div>';
+  }
+  h+='<div class="mapa-salvo" id="mapaSalvo"></div>';
+  est.exercicios.forEach(ex=>{
+    const v=resp[ex.id];
+    h+='<div class="mapa-ex" data-ex="'+ex.id+'"><h3>'+escapeHtml(ex.titulo)+'</h3>'
+      +(ex.instrucao?'<p class="instr">'+escapeHtml(ex.instrucao)+'</p>':'');
+    if(ex.tipo==='escolha'){
+      h+=ex.opcoes.map(o=>'<label class="op"><input type="radio" name="'+est.id+'-'+ex.id+'" value="'+escapeHtml(o)+'"'
+        +(v===o?' checked':'')+'> '+escapeHtml(o)+'</label>').join('');
+    }else if(ex.tipo==='campos'){
+      h+=ex.campos.map(c=>'<label>'+escapeHtml(c.rotulo)+'</label><textarea rows="2" data-campo="'+c.id+'">'
+        +escapeHtml(((v||{})[c.id])||'')+'</textarea>').join('');
+    }else{
+      h+='<div class="mapa-scroll"><table><thead><tr>'+ex.colunas.map(c=>'<th>'+escapeHtml(c.rotulo)+'</th>').join('')+'</tr></thead><tbody>';
+      for(let r=0;r<ex.linhas;r++){
+        h+='<tr>'+ex.colunas.map((c,ci)=>{
+          const cel=((v||[])[r]||[])[ci];
+          return '<td>'+(c.tipo==='check'
+            ? '<input type="checkbox" data-col="'+ci+'"'+(cel===true?' checked':'')+'>'
+            : '<input type="text" data-col="'+ci+'" value="'+escapeHtml(cel||'')+'">')+'</td>';
+        }).join('')+'</tr>';
+      }
+      h+='</tbody></table></div>';
+    }
+    h+='</div>';
+  });
+  document.getElementById('mapaBody').innerHTML=h;
+}
+/* Lê o exercício inteiro do DOM e grava. Guarda todas as linhas da tabela,
+   inclusive as vazias, para as respostas não trocarem de lugar. */
+function mapaGravar(el){
+  const caixa=el.closest('[data-ex]'); if(!caixa) return;
+  const est=mapaTrilha[mapaAtual], ex=est.exercicios.find(x=>x.id===caixa.dataset.ex); if(!ex) return;
+  let valor;
+  if(ex.tipo==='escolha'){ valor=(caixa.querySelector('input:checked')||{}).value||''; }
+  else if(ex.tipo==='campos'){
+    valor={}; caixa.querySelectorAll('[data-campo]').forEach(i=>{ valor[i.dataset.campo]=i.value.trim(); });
+  }else{
+    valor=[]; caixa.querySelectorAll('tbody tr').forEach(tr=>{
+      const linha=[]; tr.querySelectorAll('[data-col]').forEach(i=> linha.push(i.type==='checkbox'?i.checked:i.value.trim()));
+      valor.push(linha);
+    });
+  }
+  const d=loadMapa(); d[est.id]=d[est.id]||{}; d[est.id][ex.id]=valor; cloudLS.setItem('ad_mapa',JSON.stringify(d));
+  const marca=document.getElementById('mapaSalvo');
+  if(marca){ marca.textContent='salvando…'; clearTimeout(mapaTimer); mapaTimer=setTimeout(()=>{ marca.textContent='salvo'; renderMapaTabs(); },700); }
+}
+document.addEventListener('input',e=>{ if(e.target.closest('#mapaBody')) mapaGravar(e.target); });
+document.addEventListener('change',e=>{ if(e.target.closest('#mapaBody')) mapaGravar(e.target); });
+/* Resumo do Mapa para o Coach: respostas curtas, com teto de tamanho. */
+function mapaContexto(){
+  const trilha=mapaTrilha||loadMapaTrilha(); if(!trilha) return '';
+  const dados=loadMapa(); const linhas=[];
+  trilha.forEach(est=>{
+    const d=dados[est.id]; if(!d) return;
+    const partes=[];
+    est.exercicios.forEach(ex=>{
+      const v=d[ex.id]; if(mapaVazio(v)) return;
+      if(ex.tipo==='escolha') partes.push(ex.titulo+': '+v);
+      else if(ex.tipo==='campos'){
+        const ditos=ex.campos.filter(c=>String((v||{})[c.id]||'').trim())
+          .map(c=>cut(c.rotulo,38)+' — '+cut(v[c.id],110));
+        if(ditos.length) partes.push(ex.titulo+': '+ditos.join(' | '));
+      }else{
+        const cheias=(v||[]).filter(l=>l.some(x=>x===true||(typeof x==='string'&&x.trim())));
+        if(cheias.length) partes.push(ex.titulo+' ('+cheias.length+'): '+cheias.slice(0,3).map(l=>{
+          const txt=l.filter(x=>typeof x==='string'&&x.trim()).join(' / ');
+          const marcadas=l.map((x,i)=>x===true?ex.colunas[i].rotulo:'').filter(Boolean).join(', ');
+          return cut([txt,marcadas?'['+marcadas+']':''].filter(Boolean).join(' '),110);
+        }).join(' | '));
+      }
+    });
+    if(partes.length) linhas.push('Dia '+est.dia+' — '+est.titulo+': '+partes.join('; '));
+  });
+  if(!linhas.length) return '';
+  return cut('\n\nMAPA DO IMPOSSÍVEL (respostas que ele já escreveu na trilha)\n'+linhas.join('\n'), 2200);
+}
+
+/* ============================================================
    CONFIG (provedor de IA é decisão do administrador, não do usuário)
 ============================================================ */
 const ADMIN_EMAIL = 'katio.almeida@gmail.com';
@@ -1530,7 +1698,7 @@ async function saveCfg(){
   }catch(err){ alert('Erro ao salvar provedor: '+err.message); }
 }
 const ALL_DATA_KEYS=['ad_diag','ad_profile','ad_ceno','ad_nucleo','ad_teia','ad_termo_hist','ad_termo_last',
-  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat'];
+  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat','ad_mapa'];
 function wipeAll(){
   if(confirm('Apagar TODOS os dados salvos (diagnóstico, cenários, núcleo emocional, teia, plano de ação, plano perfeito e chat)? Esta ação não pode ser desfeita.')){
     ALL_DATA_KEYS.forEach(k=>cloudLS.removeItem(k));
@@ -1773,7 +1941,7 @@ function toolsContext(){
   if(vazias.length) lines.push('Ainda não preenchido no app: '+vazias.join(', ')+'.');
   lines.push('Hoje: '+today+'.');
   const texto=lines.join('\n').replace(/\.{2,}/g,'.').replace(/\.;/g,';').replace(/…\./g,'…');
-  return '\n\n[Resumo das ferramentas do protocolo, com as palavras do próprio Aliado]\n'+texto;
+  return '\n\n[Resumo das ferramentas do protocolo, com as palavras do próprio Aliado]\n'+texto+mapaContexto();
 }
 async function callCoach(){
   let recentes=chat.slice(-HIST_MAX);
@@ -1997,7 +2165,7 @@ function notaSugestoes(m){
    WIRING — delegação de eventos (funciona em qualquer navegador/painel,
    sem depender de handlers onclick embutidos no HTML)
 ============================================================ */
-var ACTIONS={ go:function(a){go(a)}, computeDiag:computeDiag, resetDiag:resetDiag,
+var ACTIONS={ go:function(a){go(a)}, computeDiag:computeDiag, resetDiag:resetDiag, mapaIr:mapaIr,
   sendDiagToCoach:sendDiagToCoach, sendPdaToCoach:sendPdaToCoach, clearCoachFocus:clearCoachFocus,
   aplicarSugestao:aplicarSugestao, ignorarSugestao:ignorarSugestao,
   print:function(){window.print()}, nextCen:nextCen,
@@ -2054,7 +2222,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* Chaves que vivem na nuvem (por usuário). */
 const CLOUD_KEYS = new Set(['ad_diag','ad_profile','ad_ceno','ad_nucleo','ad_teia','ad_termo_hist','ad_termo_last',
-  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat']);
+  'ad_pda','ad_ppp','ad_naotool','ad_sonho','ad_pilares','ad_meses','ad_licoes','ad_carta','ad_chat','ad_mapa']);
 
 const cloudLS = {
   _cache: {},
@@ -2105,6 +2273,10 @@ function runAppInit(){
   renderTermoHist();
   renderAcao();
   renderPlanoPerfeito();
+  // a trilha do Mapa é material de estudo pessoal: a aba só aparece para o administrador
+  const navMapa=document.getElementById('navMapa');
+  if(navMapa) navMapa.style.display=isAdmin()?'':'none';
+  if(isAdmin()) carregarTrilha().catch(err=>console.warn('Trilha do Mapa indisponivel:',err.message));
 }
 
 /* ============================================================
