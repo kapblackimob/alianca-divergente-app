@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aliança Divergente — App de Análise Comportamental</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700;1,800&family=Mulish:wght@400;600;700;800&display=swap">
 <style>
   :root{
     --navy:#1B1B3A; --navy2:#24244A; --deep:#121228; --gold:#C9A24B; --gold2:#E8D9A8;
@@ -127,6 +130,63 @@
   .cam.c3{background:#dbeade;color:#1e6b3a}
   .mapa-glos{margin-bottom:14px}
   .mapa-glos summary{cursor:pointer;font-size:13.5px;color:var(--navy);margin-bottom:10px}
+
+  /* ---- Identidade do Mapa: mesma paleta e mesmo formato da página "O Mapa Decifrado".
+     Tudo escopado em #mapa, então nenhuma outra tela do app muda. ---- */
+  #mapa{
+    --m-bg:#101026; --m-panel:#181838; --m-panel2:#20204A; --m-ink:#ECEAE3; --m-ink2:#BCBBD2;
+    --m-ink3:#8F8EA8; --m-line:#2C2C57; --m-gold:#D8B368; --m-gold2:#F0DCA8; --m-soft:#2A2350;
+    background:var(--m-bg); color:var(--m-ink); border-radius:16px; padding:26px 22px 30px;
+    margin:6px 0 20px; box-shadow:0 10px 30px -18px #00000080;
+    font-family:'Mulish','Segoe UI',Calibri,Arial,sans-serif;
+  }
+  #mapa .kicker{color:var(--m-gold);letter-spacing:.16em}
+  #mapa h1{font-family:'Playfair Display',Cambria,Georgia,serif;font-style:italic;font-weight:800;
+    color:var(--m-ink);font-size:clamp(30px,5vw,44px);line-height:1.05;margin:.1em 0 .25em}
+  #mapa .lead{color:var(--m-ink2);font-size:15.5px;max-width:70ch}
+  #mapa .muted,#mapa .instr{color:var(--m-ink3)}
+  #mapa .note{background:var(--m-panel);border:1px solid var(--m-line);border-radius:12px;padding:12px 14px;color:var(--m-ink2)}
+  #mapa .mapa-tabs button{background:var(--m-panel);border-color:var(--m-line);color:var(--m-ink2);border-radius:12px;padding:9px 13px}
+  #mapa .mapa-tabs button small{color:var(--m-ink3)}
+  #mapa .mapa-tabs button:hover{border-color:var(--m-gold);color:var(--m-ink)}
+  #mapa .mapa-tabs button.on{background:var(--m-gold);border-color:var(--m-gold);color:#17172F}
+  #mapa .mapa-tabs button.on small{color:#17172FB3}
+  #mapa .mapa-tese{background:var(--m-soft);border:0;border-left:3px solid var(--m-gold);border-radius:0 12px 12px 0;
+    color:var(--m-ink);font-size:15px;padding:14px 16px}
+  #mapa .mapa-cortes a{background:var(--m-panel);border-color:var(--m-line);color:var(--m-ink2)}
+  #mapa .mapa-cortes a:hover{border-color:var(--m-gold);color:var(--m-ink)}
+  #mapa .mapa-ex{background:var(--m-panel);border-color:var(--m-line);border-radius:14px;padding:18px}
+  #mapa .mapa-ex h3{font-family:'Playfair Display',Cambria,Georgia,serif;font-style:italic;font-weight:700;
+    font-size:21px;color:var(--m-ink);margin-bottom:6px}
+  #mapa .mapa-ex label{color:var(--m-ink2);font-size:12.5px;letter-spacing:.02em;margin-top:12px}
+  #mapa .mapa-ex textarea,#mapa .mapa-ex input[type=text],#mapa .mapa-ex select,#mapa .diario-nav input[type=date]{
+    background:#14142E;border:1px solid var(--m-line);color:var(--m-ink);border-radius:9px}
+  #mapa .mapa-ex textarea::placeholder,#mapa .mapa-ex input::placeholder{color:#6C6B8A;font-style:italic}
+  #mapa .mapa-ex textarea:focus,#mapa .mapa-ex input:focus,#mapa .mapa-ex select:focus{outline:none;border-color:var(--m-gold)}
+  #mapa .mapa-ex th{color:var(--m-gold);text-transform:uppercase;letter-spacing:.08em;font-size:11px}
+  #mapa .mapa-ex tbody tr:nth-child(even) td{background:#15152F}
+  #mapa .mapa-ex .op{color:var(--m-ink2)}
+  #mapa .mapa-etapas{color:var(--m-ink2)}
+  #mapa .mapa-etapas li b{color:var(--m-ink)}
+  #mapa .mapa-dia{color:var(--m-gold)}
+  #mapa .mapa-conceito{background:var(--m-panel2);border-color:var(--m-line);color:var(--m-ink)}
+  #mapa .mapa-conceito p{color:var(--m-ink2)}
+  #mapa .mapa-conceito i{color:var(--m-ink3)}
+  #mapa .mapa-conceito a{color:var(--m-gold2)}
+  #mapa .mapa-glos summary{color:var(--m-gold)}
+  #mapa .diario-nav button.ghost{background:transparent;border-color:var(--m-line);color:var(--m-ink2)}
+  #mapa .diario-nav button.ghost:hover{border-color:var(--m-gold);color:var(--m-ink)}
+  #mapa .mapa-salvo{color:var(--m-gold)}
+  #mapa .painel-n{font-family:'Playfair Display',Cambria,Georgia,serif;font-style:italic;font-size:19px;color:var(--m-ink)}
+  #mapa .painel-n b{color:var(--m-gold);font-size:26px}
+  #mapa .d7{background:var(--m-panel2);border-color:var(--m-line);color:var(--m-ink3)}
+  #mapa .d7.on{background:var(--m-gold);border-color:var(--m-gold);color:#17172F}
+  #mapa table.padroes th{color:var(--m-ink3)}
+  #mapa table.padroes td{border-top-color:var(--m-line);color:var(--m-ink)}
+  #mapa .cam{background:var(--m-panel2);color:var(--m-ink3)}
+  #mapa .cam.c1{background:#3A2F17;color:#E5C479}
+  #mapa .cam.c2{background:#26351F;color:#A8CE86}
+  #mapa .cam.c3{background:#173327;color:#7FD3A2}
   .mapa-salvo{font-size:12px;color:#7a8;min-height:16px;margin-bottom:8px}
   .msg.bot a{color:var(--navy);text-decoration:underline;text-underline-offset:2px}
   .msg-tag{display:block;margin-top:8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
