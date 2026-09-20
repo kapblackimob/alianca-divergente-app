@@ -128,6 +128,15 @@
   .cam.c1{background:#fdf1d8;color:#8a6a1a}
   .cam.c2{background:#e6efdc;color:#4a6a2a}
   .cam.c3{background:#dbeade;color:#1e6b3a}
+  .mapa-barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .btn-exemplo{font-size:12.5px;padding:7px 12px}
+  .exemplo-aviso{font-size:12.5px;color:#8a7a4a;background:#fbf6e8;border:1px solid var(--gold);border-radius:9px;padding:8px 11px;margin-bottom:12px}
+  .mapa-exemplo{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px;font-size:13px}
+  .mapa-exemplo p{margin:3px 0;color:#556}
+  .mapa-exemplo .lbl-ex{display:inline-block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
+  .mapa-exemplo table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .mapa-exemplo th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#889;padding:3px 5px}
+  .mapa-exemplo td{padding:4px 5px;border-top:1px solid var(--line);color:#556;vertical-align:top}
   .mapa-glos{margin-bottom:14px}
   .mapa-glos summary{cursor:pointer;font-size:13.5px;color:var(--navy);margin-bottom:10px}
 
@@ -187,6 +196,14 @@
   #mapa .cam.c1{background:#3A2F17;color:#E5C479}
   #mapa .cam.c2{background:#26351F;color:#A8CE86}
   #mapa .cam.c3{background:#173327;color:#7FD3A2}
+  #mapa .exemplo-aviso{background:#2A2350;border-color:var(--m-gold);color:var(--m-gold2)}
+  #mapa .btn-exemplo{background:transparent;border-color:var(--m-line);color:var(--m-ink2)}
+  #mapa .btn-exemplo:hover{border-color:var(--m-gold);color:var(--m-ink)}
+  #mapa .mapa-exemplo{border-top-color:var(--m-line)}
+  #mapa .mapa-exemplo p,#mapa .mapa-exemplo td{color:var(--m-ink2)}
+  #mapa .mapa-exemplo p b{color:var(--m-ink)}
+  #mapa .mapa-exemplo th{color:var(--m-ink3)}
+  #mapa .mapa-exemplo td{border-top-color:var(--m-line)}
   .mapa-salvo{font-size:12px;color:#7a8;min-height:16px;margin-bottom:8px}
   .msg.bot a{color:var(--navy);text-decoration:underline;text-underline-offset:2px}
   .msg-tag{display:block;margin-top:8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
@@ -1645,6 +1662,32 @@ function mapaVazio(v){
   if(v && typeof v==='object') return !Object.values(v).some(x=>String(x||'').trim());
   return !String(v||'').trim();
 }
+/* Exemplo preenchido: um caso inteiro, so para olhar. Nao entra nos dados do Aliado. */
+let mapaExemplo=false;
+function mapaVerExemplo(){ mapaExemplo=!mapaExemplo; renderMapaEstacao(); }
+function avisoExemplo(){
+  const cfg=(mapaBase&&mapaBase.diario)||{};
+  return '<p class="exemplo-aviso">'+escapeHtml(cfg.aviso_exemplo||'Exemplo para orientar o preenchimento. A historia e os numeros sao inventados.')+'</p>';
+}
+function botaoExemplo(){
+  return '<button class="ghost btn-exemplo" data-action="mapaVerExemplo">'+(mapaExemplo?'Esconder o exemplo':'Ver exemplo preenchido')+'</button>';
+}
+function blocoExemplo(ex,valor){
+  if(valor===undefined||valor===null) return '';
+  let h='<div class="mapa-exemplo"><span class="lbl-ex">Exemplo</span>';
+  if(ex.tipo==='escolha'){ h+='<p>'+escapeHtml(String(valor))+'</p>'; }
+  else if(ex.tipo==='campos'){
+    h+=ex.campos.filter(c=>String((valor||{})[c.id]||'').trim())
+      .map(c=>'<p><b>'+escapeHtml(cut(c.rotulo,60))+':</b> '+escapeHtml(valor[c.id])+'</p>').join('');
+  }else{
+    const cols=ex.colunas||[];
+    const linhas=(valor||[]).filter(l=>l.some(x=>x===true||(typeof x==='string'&&x.trim())));
+    h+='<div class="mapa-scroll"><table><thead><tr>'+cols.map(c=>'<th>'+escapeHtml(c.rotulo)+'</th>').join('')+'</tr></thead><tbody>'
+      +linhas.map(l=>'<tr>'+cols.map((c,i)=>'<td>'+escapeHtml(l[i]===true?'sim':(l[i]===false?'':String(l[i]||'')))+'</td>').join('')+'</tr>').join('')
+      +'</tbody></table></div>';
+  }
+  return h+'</div>';
+}
 /* O exemplo do campo vira placeholder, para o Aliado ver o que entra ali. */
 function dica(c){ return c && c.exemplo ? ' placeholder="'+escapeHtml(c.exemplo)+'"' : ''; }
 function mapaProgresso(est){
@@ -1737,7 +1780,8 @@ function renderMapaEstacao(){
       +'<p>'+escapeHtml(c['def'])+'</p>'+(c.link?'<a href="'+c.link+'" target="_blank" rel="noopener">▶ abrir o trecho</a>':'')+'</div>').join('')
       +'</div></details>';
   }
-  h+='<div class="mapa-salvo" id="mapaSalvo"></div>';
+  h+='<div class="mapa-barra">'+botaoExemplo()+'<span class="mapa-salvo" id="mapaSalvo"></span></div>';
+  if(mapaExemplo && est.exemplo) h+=avisoExemplo();
   est.exercicios.forEach(ex=>{
     const v=resp[ex.id];
     h+='<div class="mapa-ex" data-ex="'+ex.id+'"><h3>'+escapeHtml(ex.titulo)+'</h3>'
@@ -1760,6 +1804,7 @@ function renderMapaEstacao(){
       }
       h+='</tbody></table></div>';
     }
+    if(mapaExemplo && est.exemplo) h+=blocoExemplo(ex,est.exemplo[ex.id]);
     h+='</div>';
   });
   document.getElementById('mapaBody').innerHTML=h;
@@ -1841,8 +1886,10 @@ function renderHoje(){
     +'<input type="date" id="diarioDataInput" value="'+diarioData+'" max="'+hojeISO()+'">'
     +'<button class="ghost" data-action="diarioIr" data-arg="1">dia seguinte →</button>'
     +'<button class="ghost" data-action="diarioIr" data-arg="0">hoje</button>'
-    +'<span class="mapa-salvo" id="mapaSalvo"></span></div>';
-  h+='<div class="mapa-ex" data-diario="manha"><h3>De manhã</h3>'+cfg.manha.map(c=>campo(c,d.manha[c.id])).join('')+'</div>';
+    +botaoExemplo()+'<span class="mapa-salvo" id="mapaSalvo"></span></div>';
+  if(mapaExemplo && cfg.exemplo) h+=avisoExemplo();
+  h+='<div class="mapa-ex" data-diario="manha"><h3>De manhã</h3>'+cfg.manha.map(c=>campo(c,d.manha[c.id])).join('')
+    +(mapaExemplo&&cfg.exemplo?blocoExemplo({tipo:'campos',campos:cfg.manha},cfg.exemplo.manha):'')+'</div>';
   h+='<div class="mapa-ex" data-diario="registro"><h3>'+escapeHtml(cfg.registro.titulo)+'</h3>'
     +'<p class="instr">'+escapeHtml(cfg.registro.instrucao)+'</p><div class="mapa-scroll"><table><thead><tr>'
     +cfg.registro.colunas.map(c=>'<th>'+escapeHtml(c.rotulo)+'</th>').join('')+'</tr></thead><tbody>';
@@ -1855,8 +1902,9 @@ function renderHoje(){
         : '<input type="text" data-col="'+ci+'"'+dica(c)+' value="'+escapeHtml(cel)+'">')+'</td>';
     }).join('')+'</tr>';
   }
-  h+='</tbody></table></div></div>';
-  h+='<div class="mapa-ex" data-diario="noite"><h3>À noite</h3>'+cfg.noite.map(c=>campo(c,d.noite[c.id])).join('')+'</div>';
+  h+='</tbody></table></div>'+(mapaExemplo&&cfg.exemplo?blocoExemplo({tipo:'tabela',colunas:cfg.registro.colunas},cfg.exemplo.registros):'')+'</div>';
+  h+='<div class="mapa-ex" data-diario="noite"><h3>À noite</h3>'+cfg.noite.map(c=>campo(c,d.noite[c.id])).join('')
+    +(mapaExemplo&&cfg.exemplo?blocoExemplo({tipo:'campos',campos:cfg.noite},cfg.exemplo.noite):'')+'</div>';
   h+=painelHoje();
   body.innerHTML=h;
   const inp=document.getElementById('diarioDataInput');
@@ -2488,7 +2536,7 @@ function notaSugestoes(m){
    WIRING — delegação de eventos (funciona em qualquer navegador/painel,
    sem depender de handlers onclick embutidos no HTML)
 ============================================================ */
-var ACTIONS={ go:function(a){go(a)}, computeDiag:computeDiag, resetDiag:resetDiag, mapaIr:mapaIr, diarioIr:diarioIr,
+var ACTIONS={ go:function(a){go(a)}, computeDiag:computeDiag, resetDiag:resetDiag, mapaIr:mapaIr, diarioIr:diarioIr, mapaVerExemplo:mapaVerExemplo,
   sendDiagToCoach:sendDiagToCoach, sendPdaToCoach:sendPdaToCoach, clearCoachFocus:clearCoachFocus,
   aplicarSugestao:aplicarSugestao, ignorarSugestao:ignorarSugestao,
   print:function(){window.print()}, nextCen:nextCen,
