@@ -131,6 +131,18 @@ export function blocoMapa(mapa: Mapa, ultima: string): string {
   return linhas.join("\n").slice(0, MAPA_MAX);
 }
 
+// O dono usa apelidos do proprio e-mail (katio.almeida+testapp@gmail.com) para
+// testar e demonstrar. Para o Mapa, que e material de estudo pessoal, esses
+// apelidos contam como a mesma conta. O provedor de IA continua so no e-mail exato.
+function mesmaConta(email: string | undefined, dono: string | undefined): boolean {
+  if (!email || !dono) return false;
+  const base = (e: string) => {
+    const [nome, dominio] = e.toLowerCase().trim().split("@");
+    return nome && dominio ? nome.split("+")[0] + "@" + dominio : e.toLowerCase().trim();
+  };
+  return base(email) === base(dono);
+}
+
 type Chamada = { ok: true; text: string } | { ok: false; status: number; error: string };
 
 async function chamarOpenAI(key: string, system: string, messages: unknown[], structured: boolean): Promise<Chamada> {
@@ -229,7 +241,7 @@ Deno.serve(async (req) => {
     let systemFinal = String(system ?? "");
     let comMapa = false;
     const adminEmail = Deno.env.get("ADMIN_EMAIL");
-    if (adminEmail && userData.user.email === adminEmail) {
+    if (mesmaConta(userData.user.email, adminEmail)) {
       const { data: mapaRow } = await admin
         .from("app_settings")
         .select("value")

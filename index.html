@@ -2024,6 +2024,10 @@ function mapaContexto(){
 ============================================================ */
 const ADMIN_EMAIL = 'katio.almeida@gmail.com';
 function isAdmin(){ return !!currentUserEmail && currentUserEmail.toLowerCase()===ADMIN_EMAIL.toLowerCase(); }
+/* Apelidos +algo do e-mail do dono (conta de teste e de demonstracao) veem o Mapa,
+   que e estudo pessoal. O bloco de administrador do Config continua no isAdmin(). */
+function baseEmail(e){ const [n,d]=String(e||'').toLowerCase().trim().split('@'); return n&&d ? n.split('+')[0]+'@'+d : String(e||'').toLowerCase().trim(); }
+function temMapa(){ return !!currentUserEmail && baseEmail(currentUserEmail)===baseEmail(ADMIN_EMAIL); }
 async function loadCfg(){
   const block=document.getElementById('providerAdminBlock');
   if(!isAdmin()){ block.style.display='none'; return; }
@@ -2656,8 +2660,8 @@ function runAppInit(){
   renderPlanoPerfeito();
   // a trilha do Mapa é material de estudo pessoal: a aba só aparece para o administrador
   const navMapa=document.getElementById('navMapa');
-  if(navMapa) navMapa.style.display=isAdmin()?'':'none';
-  if(isAdmin()) carregarTrilha().catch(err=>console.warn('Trilha do Mapa indisponivel:',err.message));
+  if(navMapa) navMapa.style.display=temMapa()?'':'none';
+  if(temMapa()) carregarTrilha().catch(err=>console.warn('Trilha do Mapa indisponivel:',err.message));
 }
 
 /* ============================================================

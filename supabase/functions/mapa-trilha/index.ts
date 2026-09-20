@@ -17,6 +17,18 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// O dono usa apelidos do proprio e-mail (katio.almeida+testapp@gmail.com) para
+// testar e demonstrar. Para o Mapa, que e material de estudo pessoal, esses
+// apelidos contam como a mesma conta. O provedor de IA continua so no e-mail exato.
+function mesmaConta(email: string | undefined, dono: string | undefined): boolean {
+  if (!email || !dono) return false;
+  const base = (e: string) => {
+    const [nome, dominio] = e.toLowerCase().trim().split("@");
+    return nome && dominio ? nome.split("+")[0] + "@" + dominio : e.toLowerCase().trim();
+  };
+  return base(email) === base(dono);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -33,7 +45,7 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) return json({ error: "Sessão inválida. Faça login novamente." }, 401);
 
     const adminEmail = Deno.env.get("ADMIN_EMAIL");
-    if (!adminEmail || userData.user.email !== adminEmail) {
+    if (!mesmaConta(userData.user.email, adminEmail)) {
       return json({ error: "Conteúdo restrito." }, 403);
     }
 
