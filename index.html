@@ -131,6 +131,8 @@
   .mapa-barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
   .btn-exemplo{font-size:12.5px;padding:7px 12px}
   .exemplo-aviso{font-size:12.5px;color:#8a7a4a;background:#fbf6e8;border:1px solid var(--gold);border-radius:9px;padding:8px 11px;margin-bottom:12px}
+  .mapa-ex.ex-on{border-style:dashed;border-color:var(--gold)}
+  .mapa-ex.ex-on textarea,.mapa-ex.ex-on input[type=text],.mapa-ex.ex-on select{font-style:italic;border-style:dashed;background:#fbf9f2;cursor:default}
   .mapa-exemplo{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px;font-size:13px}
   .mapa-exemplo p{margin:3px 0;color:#556}
   .mapa-exemplo .lbl-ex{display:inline-block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
@@ -200,6 +202,9 @@
   #mapa .btn-exemplo{background:transparent;border-color:var(--m-line);color:var(--m-ink2)}
   #mapa .btn-exemplo:hover{border-color:var(--m-gold);color:var(--m-ink)}
   #mapa .mapa-exemplo{border-top-color:var(--m-line)}
+  #mapa .mapa-ex.ex-on{border-color:var(--m-gold);border-style:dashed}
+  #mapa .mapa-ex.ex-on textarea,#mapa .mapa-ex.ex-on input[type=text],#mapa .mapa-ex.ex-on select{
+    background:#1B1B3F;color:var(--m-gold2);font-style:italic;border-style:dashed;cursor:default;opacity:1}
   #mapa .mapa-exemplo p,#mapa .mapa-exemplo td{color:var(--m-ink2)}
   #mapa .mapa-exemplo p b{color:var(--m-ink)}
   #mapa .mapa-exemplo th{color:var(--m-ink3)}
@@ -1782,15 +1787,16 @@ function renderMapaEstacao(){
   }
   h+='<div class="mapa-barra">'+botaoExemplo()+'<span class="mapa-salvo" id="mapaSalvo"></span></div>';
   if(mapaExemplo && est.exemplo) h+=avisoExemplo();
+  const so=mapaExemplo&&est.exemplo?' readonly tabindex="-1"':'', sd=mapaExemplo&&est.exemplo?' disabled':'';
   est.exercicios.forEach(ex=>{
-    const v=resp[ex.id];
-    h+='<div class="mapa-ex" data-ex="'+ex.id+'"><h3>'+escapeHtml(ex.titulo)+'</h3>'
+    const v=(mapaExemplo&&est.exemplo&&est.exemplo[ex.id]!==undefined)?est.exemplo[ex.id]:resp[ex.id];
+    h+='<div class="mapa-ex'+(mapaExemplo&&est.exemplo?' ex-on':'')+'" data-ex="'+ex.id+'"><h3>'+escapeHtml(ex.titulo)+'</h3>'
       +(ex.instrucao?'<p class="instr">'+escapeHtml(ex.instrucao)+'</p>':'');
     if(ex.tipo==='escolha'){
       h+=ex.opcoes.map(o=>'<label class="op"><input type="radio" name="'+est.id+'-'+ex.id+'" value="'+escapeHtml(o)+'"'
-        +(v===o?' checked':'')+'> '+escapeHtml(o)+'</label>').join('');
+        +(v===o?' checked':'')+sd+'> '+escapeHtml(o)+'</label>').join('');
     }else if(ex.tipo==='campos'){
-      h+=ex.campos.map(c=>'<label>'+escapeHtml(c.rotulo)+'</label><textarea rows="2" data-campo="'+c.id+'"'+dica(c)+'>'
+      h+=ex.campos.map(c=>'<label>'+escapeHtml(c.rotulo)+'</label><textarea rows="2" data-campo="'+c.id+'"'+dica(c)+so+'>'
         +escapeHtml(((v||{})[c.id])||'')+'</textarea>').join('');
     }else{
       h+='<div class="mapa-scroll"><table><thead><tr>'+ex.colunas.map(c=>'<th>'+escapeHtml(c.rotulo)+'</th>').join('')+'</tr></thead><tbody>';
@@ -1798,13 +1804,12 @@ function renderMapaEstacao(){
         h+='<tr>'+ex.colunas.map((c,ci)=>{
           const cel=((v||[])[r]||[])[ci];
           return '<td>'+(c.tipo==='check'
-            ? '<input type="checkbox" data-col="'+ci+'"'+(cel===true?' checked':'')+'>'
-            : '<input type="text" data-col="'+ci+'"'+dica(c)+' value="'+escapeHtml(cel||'')+'">')+'</td>';
+            ? '<input type="checkbox" data-col="'+ci+'"'+(cel===true?' checked':'')+sd+'>'
+            : '<input type="text" data-col="'+ci+'"'+dica(c)+so+' value="'+escapeHtml(cel||'')+'">')+'</td>';
         }).join('')+'</tr>';
       }
       h+='</tbody></table></div>';
     }
-    if(mapaExemplo && est.exemplo) h+=blocoExemplo(ex,est.exemplo[ex.id]);
     h+='</div>';
   });
   document.getElementById('mapaBody').innerHTML=h;
@@ -1812,6 +1817,7 @@ function renderMapaEstacao(){
 /* Lê o exercício inteiro do DOM e grava. Guarda todas as linhas da tabela,
    inclusive as vazias, para as respostas não trocarem de lugar. */
 function mapaGravar(el){
+  if(mapaExemplo) return; // modo exemplo: nada e gravado
   const caixa=el.closest('[data-ex]'); if(!caixa) return;
   const est=mapaTrilha[mapaAtual], ex=est.exercicios.find(x=>x.id===caixa.dataset.ex); if(!ex) return;
   let valor;
@@ -1877,10 +1883,13 @@ function diarioPadroes(){
 function renderHoje(){
   const cfg=(mapaBase&&mapaBase.diario)||null, body=document.getElementById('mapaBody');
   if(!cfg){ body.innerHTML='<p class="note">O check-in diário ainda não chegou do servidor. Recarregue a página.</p>'; return; }
-  const d=diarioDoDia(diarioData);
+  const real=diarioDoDia(diarioData);
+  const modoEx=mapaExemplo&&cfg.exemplo;
+  const d=modoEx?{manha:cfg.exemplo.manha||{}, registros:cfg.exemplo.registros||[], noite:cfg.exemplo.noite||{}}:real;
+  const so=modoEx?' readonly tabindex="-1"':'', sd=modoEx?' disabled':'';
   const campo=(c,valor,grupo)=> '<label>'+escapeHtml(c.rotulo)+'</label>'+(c.opcoes
-      ? '<select data-campo="'+c.id+'"><option value=""></option>'+c.opcoes.map(o=>'<option'+(valor===o?' selected':'')+'>'+escapeHtml(o)+'</option>').join('')+'</select>'
-      : '<textarea rows="2" data-campo="'+c.id+'"'+dica(c)+'>'+escapeHtml(valor||'')+'</textarea>');
+      ? '<select data-campo="'+c.id+'"'+sd+'><option value=""></option>'+c.opcoes.map(o=>'<option'+(valor===o?' selected':'')+'>'+escapeHtml(o)+'</option>').join('')+'</select>'
+      : '<textarea rows="2" data-campo="'+c.id+'"'+dica(c)+so+'>'+escapeHtml(valor||'')+'</textarea>');
   let h='<div class="mapa-tese">'+escapeHtml(cfg.tese)+'</div>'
     +'<div class="diario-nav"><button class="ghost" data-action="diarioIr" data-arg="-1">← dia anterior</button>'
     +'<input type="date" id="diarioDataInput" value="'+diarioData+'" max="'+hojeISO()+'">'
@@ -1888,23 +1897,23 @@ function renderHoje(){
     +'<button class="ghost" data-action="diarioIr" data-arg="0">hoje</button>'
     +botaoExemplo()+'<span class="mapa-salvo" id="mapaSalvo"></span></div>';
   if(mapaExemplo && cfg.exemplo) h+=avisoExemplo();
-  h+='<div class="mapa-ex" data-diario="manha"><h3>De manhã</h3>'+cfg.manha.map(c=>campo(c,d.manha[c.id])).join('')
-    +(mapaExemplo&&cfg.exemplo?blocoExemplo({tipo:'campos',campos:cfg.manha},cfg.exemplo.manha):'')+'</div>';
-  h+='<div class="mapa-ex" data-diario="registro"><h3>'+escapeHtml(cfg.registro.titulo)+'</h3>'
+  h+='<div class="mapa-ex'+(modoEx?' ex-on':'')+'" data-diario="manha"><h3>De manhã</h3>'+cfg.manha.map(c=>campo(c,d.manha[c.id])).join('')
+    +'</div>';
+  h+='<div class="mapa-ex'+(modoEx?' ex-on':'')+'" data-diario="registro"><h3>'+escapeHtml(cfg.registro.titulo)+'</h3>'
     +'<p class="instr">'+escapeHtml(cfg.registro.instrucao)+'</p><div class="mapa-scroll"><table><thead><tr>'
     +cfg.registro.colunas.map(c=>'<th>'+escapeHtml(c.rotulo)+'</th>').join('')+'</tr></thead><tbody>';
-  const totalLinhas=Math.max(cfg.registro.linhas,(d.registros||[]).length);
+  const totalLinhas=modoEx?(d.registros||[]).length:Math.max(cfg.registro.linhas,(real.registros||[]).length);
   for(let r=0;r<totalLinhas;r++){
     h+='<tr>'+cfg.registro.colunas.map((c,ci)=>{
       const cel=(d.registros[r]||[])[ci]||'';
       return '<td>'+(c.tipo==='opcoes'
-        ? '<select data-col="'+ci+'"><option value=""></option>'+c.opcoes.map(o=>'<option'+(cel===o?' selected':'')+'>'+escapeHtml(o)+'</option>').join('')+'</select>'
-        : '<input type="text" data-col="'+ci+'"'+dica(c)+' value="'+escapeHtml(cel)+'">')+'</td>';
+        ? '<select data-col="'+ci+'"'+sd+'><option value=""></option>'+c.opcoes.map(o=>'<option'+(cel===o?' selected':'')+'>'+escapeHtml(o)+'</option>').join('')+'</select>'
+        : '<input type="text" data-col="'+ci+'"'+dica(c)+so+' value="'+escapeHtml(cel)+'">')+'</td>';
     }).join('')+'</tr>';
   }
-  h+='</tbody></table></div>'+(mapaExemplo&&cfg.exemplo?blocoExemplo({tipo:'tabela',colunas:cfg.registro.colunas},cfg.exemplo.registros):'')+'</div>';
-  h+='<div class="mapa-ex" data-diario="noite"><h3>À noite</h3>'+cfg.noite.map(c=>campo(c,d.noite[c.id])).join('')
-    +(mapaExemplo&&cfg.exemplo?blocoExemplo({tipo:'campos',campos:cfg.noite},cfg.exemplo.noite):'')+'</div>';
+  h+='</tbody></table></div>'+'</div>';
+  h+='<div class="mapa-ex'+(modoEx?' ex-on':'')+'" data-diario="noite"><h3>À noite</h3>'+cfg.noite.map(c=>campo(c,d.noite[c.id])).join('')
+    +'</div>';
   h+=painelHoje();
   body.innerHTML=h;
   const inp=document.getElementById('diarioDataInput');
@@ -1944,6 +1953,7 @@ function diarioIr(passo){
   renderHoje();
 }
 function diarioGravar(el){
+  if(mapaExemplo) return; // modo exemplo: nada e gravado
   const caixa=el.closest('[data-diario]'); if(!caixa) return;
   const grupo=caixa.dataset.diario, dados=loadDiario();
   const dia=dados[diarioData]||(dados[diarioData]={});
